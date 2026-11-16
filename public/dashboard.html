@@ -12,13 +12,14 @@
     <h1>🌍 Tontine Digitale</h1>
     <div class="header-right">
       <span id="uName"></span>
-      <button onclick="logout()" class="btn btn-sm btn-danger">Deconnexion</button>
+      <button onclick="logout()" class="btn btn-sm btn-danger">Déconnexion</button>
     </div>
   </header>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="donation" onclick="tab('donation')">💰 Donation</button>
     <button class="tab-btn" data-tab="fusion" onclick="tab('fusion')">🤝 Fusions</button>
     <button class="tab-btn" data-tab="progress" onclick="tab('progress')">📈 Progression</button>
+    <button class="tab-btn" data-tab="historique" onclick="tab('historique')">📜 Historique</button>
     <button class="tab-btn" data-tab="parrainage" onclick="tab('parrainage')">👥 Parrainage</button>
     <button class="tab-btn" data-tab="profil" onclick="tab('profil')">⚙️ Profil</button>
   </nav>
@@ -27,7 +28,7 @@
     <div class="tab-pane active" id="tab-donation">
       <div class="card">
         <h3>Faire une donation</h3>
-        <p>Limite quotidienne : <span id="dlUsed">0</span> / 50 000 F utilise | Reste : <span id="dlRem">50 000</span> F</p>
+        <p>Limite quotidienne : <span id="dlUsed">0</span> / 50 000 F utilisé | Reste : <span id="dlRem">50 000</span> F</p>
         <div class="progress-bar-sm"><div class="progress-fill" id="dlBar" style="width:0%"></div></div>
         <div class="amount-grid">
           <button class="amt-btn" id="amt5000" onclick="selA(5000)">5 000 F</button>
@@ -52,15 +53,22 @@
 
     <div class="tab-pane" id="tab-fusion">
       <div class="card">
-        <h3>Mes fusions</h3>
+        <h3>Mes fusions en cours</h3>
         <div id="fusionList"><p>Chargement...</p></div>
       </div>
     </div>
 
     <div class="tab-pane" id="tab-progress">
       <div class="card">
-        <h3>Ma progression</h3>
+        <h3>Ma progression (Gains)</h3>
         <div id="progressList"><p>Chargement...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-historique">
+      <div class="card">
+        <h3>📜 Historique des transactions validées</h3>
+        <div id="historyList"><p>Chargement de l'historique...</p></div>
       </div>
     </div>
 
@@ -71,13 +79,16 @@
         <input type="text" id="uLink" readonly class="input-readonly" onclick="this.select()">
         <p class="mt-1">Votre code parrain : <strong id="uSponsor"></strong></p>
         <hr>
-        <h4>Generer un code d'acces pour un filleul</h4>
-        <p>Le code est valable 30 secondes. Donnez-le a votre filleul pour qu'il s'inscrive.</p>
-        <button onclick="genCode()" class="btn btn-primary">Generer un code</button>
+        <h4>Générer un code d'accès pour un filleul</h4>
+        <p>Le code est valable 30 secondes. Donnez-le à votre filleul pour qu'il s'inscrive.</p>
+        <button onclick="genCode()" class="btn btn-primary">Générer un code</button>
         <div class="code-display">
           <input type="text" id="accessCode" readonly class="input-readonly code-big">
           <span id="codeTimer"></span>
         </div>
+        <hr>
+        <h4>👥 Mes Filleuls Inscrits</h4>
+        <div id="referralsList"><p>Chargement de vos filleuls...</p></div>
         <hr>
         <h4>Mes devoirs en cours</h4>
         <div id="dutiesList"><p>Chargement...</p></div>
@@ -87,15 +98,15 @@
     <div class="tab-pane" id="tab-profil">
       <div class="card">
         <h3>Mon profil</h3>
-        <p>Email : <strong id="uEmail"></strong> | Tel : <strong id="uPhone"></strong></p>
+        <p>Email : <strong id="uEmail"></strong> | WhatsApp : <strong id="uPhone"></strong></p>
         <form onsubmit="event.preventDefault();saveP()">
           <div class="form-group">
             <label>Nom complet</label>
             <input type="text" id="pFullName">
           </div>
           <div class="form-group">
-            <label>Telephone</label>
-            <input type="text" id="pPhone">
+            <label>Numéro WhatsApp / Téléphone</label>
+            <input type="text" id="pWhatsapp">
           </div>
           <h4>Moyens de paiement</h4>
           <div class="form-group">

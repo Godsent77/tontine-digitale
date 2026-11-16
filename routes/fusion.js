@@ -18,7 +18,7 @@ async function getSponsorChain(userId, depth) {
       chain.push(null);
       continue;
     }
-    chain.push({ fullName: sponsor.fullName, phone: sponsor.phone, email: sponsor.email });
+    chain.push({ fullName: sponsor.fullName, phone: sponsor.phone || sponsor.whatsapp, email: sponsor.email });
     currentId = sponsor._id;
   }
   return chain;
@@ -49,6 +49,7 @@ router.get('/my-fusions', auth, async (req, res) => {
         daysRemaining,
         paymentConfirmed: f.paymentConfirmed,
         receiptConfirmed: f.receiptConfirmed,
+        validatedAt: f.validatedAt,
         partnerName: partner ? partner.fullName : 'Inconnu',
         partner
       });
@@ -101,10 +102,11 @@ router.post('/:id/confirm-receipt', auth, async (req, res) => {
     fusion.receiptConfirmed = true;
     fusion.status = 'active';
     fusion.startDate = new Date();
+    fusion.validatedAt = new Date(); // Date et heure de validation
     fusion.progress = 0;
     await fusion.save();
 
-    res.json({ message: 'Reception confirmee, cycle demarre' });
+    res.json({ message: 'Reception confirmee, transaction validee' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

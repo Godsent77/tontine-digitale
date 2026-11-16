@@ -19,7 +19,7 @@ router.get('/', auth, async (req, res) => {
 
     const fusions = await Fusion.find({
       $or: [{ payerId: req.userId }, { receiverId: req.userId }]
-    }).sort({ createdAt: -1 }).limit(5);
+    }).sort({ createdAt: -1 }).limit(10);
 
     res.json({
       user,
@@ -35,14 +35,33 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+router.get('/referrals', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    const referrals = await User.find({
+      $or: [
+        { sponsorId: req.userId },
+        { sponsorCode: user.referralCode }
+      ]
+    }).select('fullName email phone whatsapp paymentMethods createdAt').sort({ createdAt: -1 });
+
+    res.json({ referrals });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { fullName, phone, paymentMethods } = req.body;
+    const { fullName, phone, whatsapp, paymentMethods } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
 
     if (fullName) user.fullName = fullName;
     if (phone !== undefined) user.phone = phone;
+    if (whatsapp !== undefined) user.whatsapp = whatsapp;
     if (paymentMethods) {
       user.paymentMethods = { ...user.paymentMethods, ...paymentMethods };
     }

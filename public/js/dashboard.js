@@ -33,7 +33,8 @@ function tab(t) {
   document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + t); });
   if (t === 'fusion') loadFusion();
   if (t === 'progress') loadProgress();
-  if (t === 'parrainage') loadDuties();
+  if (t === 'historique') loadHistory();
+  if (t === 'parrainage') { loadDuties(); loadReferrals(); }
 }
 
 function initPayGrid() {
@@ -51,11 +52,11 @@ async function loadDash() {
     F = d.fusions || [];
     document.getElementById('uName').textContent = U.fullName;
     document.getElementById('uEmail').textContent = U.email;
-    document.getElementById('uPhone').textContent = U.phone || '-';
+    document.getElementById('uPhone').textContent = U.whatsapp || U.phone || '-';
     document.getElementById('uSponsor').textContent = U.sponsorCode || 'Fondateur';
     document.getElementById('uLink').value = location.origin + '/register?ref=' + U.referralCode;
     document.getElementById('pFullName').value = U.fullName || '';
-    document.getElementById('pPhone').value = U.phone || '';
+    document.getElementById('pWhatsapp').value = U.whatsapp || U.phone || '';
     document.getElementById('pOrange').value = U.paymentMethods ? U.paymentMethods.orange_money || '' : '';
     document.getElementById('pWave').value = U.paymentMethods ? U.paymentMethods.wave || '' : '';
     document.getElementById('pMoov').value = U.paymentMethods ? U.paymentMethods.moov_money || '' : '';
@@ -73,7 +74,7 @@ async function loadDash() {
   } catch (e) {
     if (e.message.indexOf('token') >= 0 || e.message.indexOf('expire') >= 0) {
       localStorage.removeItem('tk');
-      location.href = '/login.html';
+      location.href = '/login';
     } else {
       toast(e.message, 'error');
     }
@@ -133,18 +134,20 @@ async function loadFusion() {
   try {
     var d = await api('/api/fusion/my-fusions');
     var c = document.getElementById('fusionList');
-    if (!d.fusions || d.fusions.length === 0) { c.innerHTML = '<div class="empty">Aucune fusion pour le moment</div>'; return; }
+    // On filtre pour ne garder que les fusions NON encore confirmees par le receveur
+    var pendingFusions = (d.fusions || []).filter(function(f) { return !f.receiptConfirmed; });
+    if (pendingFusions.length === 0) { c.innerHTML = '<div class="empty">Aucune fusion en attente de paiement</div>'; return; }
     var h = '';
-    d.fusions.forEach(function(f) {
+    pendingFusions.forEach(function(f) {
       var isPayer = f.role === 'payer';
       h += '<div class="fusion-card">';
       h += '<div class="fusion-header">' + badge(f.status) + ' <strong>' + fmt(f.amount) + ' F CFA</strong></div>';
       h += '<div class="fusion-body">';
       h += '<p><strong>Partenaire:</strong> ' + (f.partnerName || 'En attente') + '</p>';
-      if (f.partner && f.status === 'active') {
-        h += '<p>Telephone: ' + (f.partner.phone || '-') + '</p>';
+      if (f.partner) {
+        h += '<p>WhatsApp / Tél: ' + (f.partner.whatsapp || f.partner.phone || '-') + '</p>';
         h += '<p>Email: ' + (f.partner.email || '-') + '</p>';
-        h += '<div class="pay-details"><strong>Moyens de paiement:</strong><br>';
+        h += '<div class="pay-details"><strong>Moyens de paiement du receveur:</strong><br>';
         if (f.partner.paymentMethods) {
           PM.forEach(function(p) {
             if (f.partner.paymentMethods[p]) h += '- ' + PL[p] + ': ' + f.partner.paymentMethods[p] + '<br>';
@@ -162,10 +165,35 @@ async function loadFusion() {
           h += '<div class="mt-1"><button onclick="payVia(\'' + f._id + '\')" class="btn btn-warning btn-sm">Payer via parrain</button></div>';
           h += '<div id="pvs-' + f._id + '" class="hidden mt-1"></div>';
         } else {
-          h += '<div class="mt-1"><button onclick="confirmRecv(\'' + f._id + '\')" class="btn btn-success btn-sm">J\'ai bien recu l\'argent</button></div>';
+          h += '<div class="mt-1"><button onclick="confirmRecv(\'' + f._id + '\')" class="btn btn-success btn-sm">💰 J\'ai bien recu l\'argent (Valider)</button></div>';
           h += '<div class="mt-1"><button onclick="confirmFwd(\'' + f._id + '\')" class="btn btn-info btn-sm">Mon parrain m\'a transfere l\'argent</button></div>';
         }
       }
+      h += '</div></div>';
+    });
+    c.innerHTML = h;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// CHARGEMENT DE L'HISTORIQUE DES TRANSACTIONS VALIDÉES
+async function loadHistory() {
+  try {
+    var d = await api('/api/fusion/my-fusions');
+    var c = document.getElementById('historyList');
+    var validatedFusions = (d.fusions || []).filter(function(f) { return f.receiptConfirmed; });
+    if (validatedFusions.length === 0) { c.innerHTML = '<div class="empty">Aucune transaction validee dans l\'historique</div>'; return; }
+    var h = '';
+    validatedFusions.forEach(function(f) {
+      var isPayer = f.role === 'payer';
+      var vDate = f.validatedAt ? new Date(f.validatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date inconnue';
+      h += '<div class="fusion-card" style="border-left:4px solid #16a34a;">';
+      h += '<div class="fusion-header"><span class="badge badge-validated">✔️ Valide</span> <strong>' + fmt(f.amount) + ' F CFA</strong></div>';
+      h += '<div class="fusion-body">';
+      h += '<p><strong>' + (isPayer ? '💸 Vous avez paye a :' : '💰 Vous avez recu de :') + '</strong> ' + (f.partnerName || 'Partenaire') + '</p>';
+      if (f.partner) {
+        h += '<p>WhatsApp: ' + (f.partner.whatsapp || f.partner.phone || '-') + ' | Email: ' + (f.partner.email || '-') + '</p>';
+      }
+      h += '<p><small style="color:#16a34a; font-weight:600;">📅 Valide le : ' + vDate + '</small></p>';
       h += '</div></div>';
     });
     c.innerHTML = h;
@@ -217,10 +245,10 @@ async function doPayVia(fid, sp) {
 }
 
 async function confirmRecv(fid) {
-  if (!confirm('Confirmer que vous avez BIEN RECU l\'argent ?\nCela demarrera le cycle de 25 jours du payeur.')) return;
+  if (!confirm('Confirmer que vous avez BIEN RECU l\'argent ?\nCela transférera cette transaction dans l\'Historique et démarrera le cycle de 25 jours.')) return;
   try {
     await api('/api/fusion/' + fid + '/confirm-receipt', { method: 'POST' });
-    toast('Reception confirmee ! Cycle demarre.');
+    toast('Reception confirmee ! Transaction enregistree dans l\'Historique.');
     loadFusion();
     loadDash();
   } catch (e) { toast(e.message, 'error'); }
@@ -239,7 +267,7 @@ async function loadProgress() {
   try {
     var d = await api('/api/fusion/my-fusions');
     var c = document.getElementById('progressList');
-    var active = (d.fusions || []).filter(function(f) { return f.status === 'active'; });
+    var active = (d.fusions || []).filter(function(f) { return f.status === 'active' && f.receiptConfirmed; });
     if (active.length === 0) { c.innerHTML = '<div class="empty">Aucun cycle en cours</div>'; return; }
     var h = '';
     active.forEach(function(f) {
@@ -273,10 +301,32 @@ async function genCode() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+async function loadReferrals() {
+  try {
+    var d = await api('/api/dashboard/referrals');
+    var c = document.getElementById('referralsList');
+    if (!d.referrals || d.referrals.length === 0) {
+      c.innerHTML = '<div class="empty">Vous n\'avez aucun filleul pour le moment</div>';
+      return;
+    }
+    var h = '';
+    d.referrals.forEach(function(ref) {
+      var dStr = new Date(ref.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      h += '<div class="fusion-card" style="margin-bottom:8px;">';
+      h += '<strong>👤 Nom: ' + (ref.fullName || 'Filleul') + '</strong><br>';
+      h += '💬 WhatsApp: ' + (ref.whatsapp || ref.phone || '-') + '<br>';
+      h += '📧 Email: ' + (ref.email || '-') + '<br>';
+      h += '<small style="color:#94a3b8">📅 Inscrit le : ' + dStr + '</small>';
+      h += '</div>';
+    });
+    c.innerHTML = h;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 async function saveP() {
   var d = {
     fullName: document.getElementById('pFullName').value,
-    phone: document.getElementById('pPhone').value,
+    whatsapp: document.getElementById('pWhatsapp').value,
     paymentMethods: {
       orange_money: document.getElementById('pOrange').value,
       wave: document.getElementById('pWave').value,
@@ -296,7 +346,7 @@ async function loadDuties() {
   try {
     var d = await api('/api/fusion/my-fusions');
     var c = document.getElementById('dutiesList');
-    var pending = (d.fusions || []).filter(function(f) { return f.status === 'pending' || f.status === 'active'; });
+    var pending = (d.fusions || []).filter(function(f) { return !f.receiptConfirmed; });
     if (pending.length === 0) { c.innerHTML = '<div class="empty">Aucun devoir en attente</div>'; return; }
     var h = '';
     pending.forEach(function(f) {
@@ -313,7 +363,7 @@ async function loadDuties() {
 
 function logout() {
   localStorage.removeItem('tk');
-  location.href = '/login.html';
+  location.href = '/login';
 }
 
 loadDash();

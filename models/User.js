@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   phone: { type: String, default: '' },
+  whatsapp: { type: String, default: '' },
   referralCode: { type: String, unique: true },
   sponsorCode: { type: String, default: '' },
   sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

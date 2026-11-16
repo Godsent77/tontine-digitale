@@ -13,6 +13,7 @@ const fusionSchema = new mongoose.Schema({
   paymentViaSponsor: { type: String, default: '' },
   forwardConfirmed: { type: Boolean, default: false },
   startDate: { type: Date, default: null },
+  validatedAt: { type: Date, default: null },
   endDate: { type: Date, default: null },
   progress: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }

@@ -7,35 +7,63 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-box">
+<div class="auth-page" style="padding: 30px 15px;">
+  <div class="auth-box" style="max-width: 500px;">
     <h2>📝 Inscription</h2>
-    <p class="info-text">Entrez le code d'accès de 6 chiffres fourni par votre parrain.</p>
+    <p class="info-text">Remplissez vos informations et moyens de paiement pour valider votre compte.</p>
     <form id="regForm">
       
-      <!-- CASE AFFICHOIR DU PARRAIN -->
       <div class="form-group">
         <label>Votre Parrain</label>
         <input type="text" id="sponsorDisplay" class="input-readonly" readonly value="Détection du parrain...">
       </div>
 
       <div class="form-group">
-        <label>Nom complet</label>
+        <label>Nom complet *</label>
         <input type="text" id="fullName" required placeholder="Jean Dupont">
       </div>
       <div class="form-group">
-        <label>Email</label>
+        <label>Email *</label>
         <input type="email" id="email" required placeholder="votre@email.com">
       </div>
       <div class="form-group">
-        <label>Mot de passe</label>
+        <label>Mot de passe *</label>
         <input type="password" id="password" required placeholder="Min 6 caractères" minlength="6">
       </div>
       <div class="form-group">
-        <label>Code d'accès (6 chiffres)</label>
+        <label>Code d'accès parrain (6 chiffres) *</label>
         <input type="text" id="accessCode" required placeholder="123456" maxlength="6">
       </div>
-      <button type="submit" class="btn btn-primary btn-block">S'inscrire</button>
+
+      <hr style="border:0; border-top:1px solid #334155; margin: 20px 0;">
+      <h4 style="color:#38bdf8; margin-bottom:15px;">📱 Contacts & Moyens de paiement</h4>
+
+      <div class="form-group">
+        <label>Numéro WhatsApp *</label>
+        <input type="text" id="whatsapp" required placeholder="+225 0700000000">
+      </div>
+      <div class="form-group">
+        <label>Numéro Orange Money</label>
+        <input type="text" id="orange_money" placeholder="07XXXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Numéro Wave</label>
+        <input type="text" id="wave" placeholder="01XXXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Numéro Moov Money</label>
+        <input type="text" id="moov_money" placeholder="01XXXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Numéro MTN Money</label>
+        <input type="text" id="mtn_money" placeholder="05XXXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Adresse USDT BEP20</label>
+        <input type="text" id="usdt_bep20" placeholder="0x...">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:20px;">S'inscrire</button>
     </form>
     <p class="auth-link">Déjà un compte ? <a href="/login">Se connecter</a></p>
     <p class="auth-link"><a href="/">← Retour accueil</a></p>
@@ -43,14 +71,13 @@
 </div>
 
 <script>
-// Récupération automatique du code parrain depuis l'URL (?ref=...)
 const params = new URLSearchParams(window.location.search);
 const ref = params.get('ref') || '';
 const sponsorInput = document.getElementById('sponsorDisplay');
 
 if (ref) {
   sponsorInput.value = '👥 Parrain : ' + ref;
-  sponsorInput.style.borderColor = '#16a34a'; // Contour vert si parrain détecté
+  sponsorInput.style.borderColor = '#16a34a';
   sponsorInput.style.color = '#38bdf8';
 } else {
   sponsorInput.value = '⚠️ Aucun parrain dans le lien';
@@ -68,7 +95,13 @@ document.getElementById('regForm').addEventListener('submit', async function(e) 
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
         accessCode: document.getElementById('accessCode').value,
-        referralCode: ref
+        referralCode: ref,
+        whatsapp: document.getElementById('whatsapp').value,
+        orange_money: document.getElementById('orange_money').value,
+        wave: document.getElementById('wave').value,
+        moov_money: document.getElementById('moov_money').value,
+        mtn_money: document.getElementById('mtn_money').value,
+        usdt_bep20: document.getElementById('usdt_bep20').value
       })
     });
     const d = await r.json();

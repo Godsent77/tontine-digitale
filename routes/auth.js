@@ -9,8 +9,8 @@ const accessCodes = {};
 
 router.post('/create-founder', async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
-    if (!fullName || !email || !password) return res.status(400).json({ error: 'Tous les champs sont requis' });
+    const { fullName, email, password, whatsapp, orange_money, wave, moov_money, mtn_money, usdt_bep20 } = req.body;
+    if (!fullName || !email || !password) return res.status(400).json({ error: 'Tous les champs de base sont requis' });
 
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: 'Email deja utilise' });
@@ -23,6 +23,15 @@ router.post('/create-founder', async (req, res) => {
       fullName,
       email,
       password: hash,
+      whatsapp: whatsapp || '',
+      phone: whatsapp || '',
+      paymentMethods: {
+        orange_money: orange_money || '',
+        wave: wave || '',
+        moov_money: moov_money || '',
+        mtn_money: mtn_money || '',
+        usdt_bep20: usdt_bep20 || ''
+      },
       referralCode: refCode,
       sponsorCode: 'AUCUN'
     });
@@ -47,8 +56,8 @@ router.post('/generate-code', auth, async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, email, password, accessCode, referralCode } = req.body;
-    if (!fullName || !email || !password || !accessCode) return res.status(400).json({ error: 'Tous les champs sont requis' });
+    const { fullName, email, password, accessCode, referralCode, whatsapp, orange_money, wave, moov_money, mtn_money, usdt_bep20 } = req.body;
+    if (!fullName || !email || !password || !accessCode) return res.status(400).json({ error: 'Tous les champs requis ne sont pas remplis' });
 
     const codeData = accessCodes[accessCode];
     if (!codeData || Date.now() > codeData.expires) return res.status(400).json({ error: 'Code d\'acces invalide ou expire' });
@@ -66,6 +75,15 @@ router.post('/register', async (req, res) => {
       fullName,
       email,
       password: hash,
+      whatsapp: whatsapp || '',
+      phone: whatsapp || '',
+      paymentMethods: {
+        orange_money: orange_money || '',
+        wave: wave || '',
+        moov_money: moov_money || '',
+        mtn_money: mtn_money || '',
+        usdt_bep20: usdt_bep20 || ''
+      },
       sponsorCode: sponsor.referralCode,
       sponsorId: sponsor._id
     });
