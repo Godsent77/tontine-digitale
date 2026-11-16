@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableau de bord - Tontine Digitale</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1>🌍 Tontine Digitale</h1>
+    <div class="header-right">
+      <span id="uName"></span>
+      <button onclick="logout()" class="btn btn-sm btn-danger">Deconnexion</button>
+    </div>
+  </header>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="donation" onclick="tab('donation')">💰 Donation</button>
+    <button class="tab-btn" data-tab="fusion" onclick="tab('fusion')">🤝 Fusions</button>
+    <button class="tab-btn" data-tab="progress" onclick="tab('progress')">📈 Progression</button>
+    <button class="tab-btn" data-tab="parrainage" onclick="tab('parrainage')">👥 Parrainage</button>
+    <button class="tab-btn" data-tab="profil" onclick="tab('profil')">⚙️ Profil</button>
+  </nav>
+  <main class="main">
+
+    <div class="tab-pane active" id="tab-donation">
+      <div class="card">
+        <h3>Faire une donation</h3>
+        <p>Limite quotidienne : <span id="dlUsed">0</span> / 50 000 F utilise | Reste : <span id="dlRem">50 000</span> F</p>
+        <div class="progress-bar-sm"><div class="progress-fill" id="dlBar" style="width:0%"></div></div>
+        <div class="amount-grid">
+          <button class="amt-btn" id="amt5000" onclick="selA(5000)">5 000 F</button>
+          <button class="amt-btn" id="amt10000" onclick="selA(10000)">10 000 F</button>
+          <button class="amt-btn" id="amt20000" onclick="selA(20000)">20 000 F</button>
+          <button class="amt-btn" id="amt50000" onclick="selA(50000)">50 000 F</button>
+        </div>
+        <input type="hidden" id="donAmt" value="0">
+        <h4>Moyen de paiement</h4>
+        <div class="pay-grid" id="payGrid"></div>
+        <div class="summary" id="summary" style="display:none">
+          <p>Vous donnez : <strong id="sumAmt">0 F</strong></p>
+          <p>Vous recevrez : <strong id="sumRec">0 F</strong> dans 25 jours</p>
+          <div id="usdtInfo" style="display:none" class="usdt-box">
+            <p>Montant USDT : <strong id="usdtAmt">0 USDT</strong></p>
+            <p>Taux : <span id="usdtRate">-</span></p>
+          </div>
+        </div>
+        <button onclick="mkDon()" class="btn btn-primary btn-block btn-lg">Confirmer la donation</button>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-fusion">
+      <div class="card">
+        <h3>Mes fusions</h3>
+        <div id="fusionList"><p>Chargement...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-progress">
+      <div class="card">
+        <h3>Ma progression</h3>
+        <div id="progressList"><p>Chargement...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-parrainage">
+      <div class="card">
+        <h3>Parrainage</h3>
+        <p>Votre lien de parrainage :</p>
+        <input type="text" id="uLink" readonly class="input-readonly" onclick="this.select()">
+        <p class="mt-1">Votre code parrain : <strong id="uSponsor"></strong></p>
+        <hr>
+        <h4>Generer un code d'acces pour un filleul</h4>
+        <p>Le code est valable 30 secondes. Donnez-le a votre filleul pour qu'il s'inscrive.</p>
+        <button onclick="genCode()" class="btn btn-primary">Generer un code</button>
+        <div class="code-display">
+          <input type="text" id="accessCode" readonly class="input-readonly code-big">
+          <span id="codeTimer"></span>
+        </div>
+        <hr>
+        <h4>Mes devoirs en cours</h4>
+        <div id="dutiesList"><p>Chargement...</p></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-profil">
+      <div class="card">
+        <h3>Mon profil</h3>
+        <p>Email : <strong id="uEmail"></strong> | Tel : <strong id="uPhone"></strong></p>
+        <form onsubmit="event.preventDefault();saveP()">
+          <div class="form-group">
+            <label>Nom complet</label>
+            <input type="text" id="pFullName">
+          </div>
+          <div class="form-group">
+            <label>Telephone</label>
+            <input type="text" id="pPhone">
+          </div>
+          <h4>Moyens de paiement</h4>
+          <div class="form-group">
+            <label>Orange Money</label>
+            <input type="text" id="pOrange" placeholder="07XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label>Wave</label>
+            <input type="text" id="pWave" placeholder="01XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label>Moov Money</label>
+            <input type="text" id="pMoov" placeholder="01XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label>MTN Money</label>
+            <input type="text" id="pMtn" placeholder="05XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label>USDT BEP20 (adresse wallet)</label>
+            <input type="text" id="pUsdt" placeholder="0x...">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sauvegarder</button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

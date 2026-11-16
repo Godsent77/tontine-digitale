@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Créer compte fondateur</title>
+<style>
+body { font-family: Arial; max-width: 500px; margin: 50px auto; padding: 20px; background: #f0f0f0; }
+h1 { color: #2563eb; }
+input { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
+button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 16px; }
+#result { margin-top: 20px; padding: 15px; background: white; border-radius: 8px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>🌍 Créer le compte fondateur</h1>
+<p>Remplis les champs puis clique sur le bouton :</p>
+<input type="text" id="fullName" placeholder="Nom complet" value="Konan Fondateur">
+<input type="email" id="email" placeholder="Email" value="fondateur@test.com">
+<input type="password" id="password" placeholder="Mot de passe" value="motdepasse123">
+<button onclick="create()">Créer le compte fondateur</button>
+<div id="result"></div>
+<script>
+async function create() {
+  const r = document.getElementById('result');
+  r.textContent = 'Envoi en cours...';
+  try {
+    const res = await fetch('http://localhost:3000/api/auth/create-founder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: document.getElementById('fullName').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    r.innerHTML = '<p style="color:green"><strong>✅ Compte créé avec succès !</strong></p>' +
+      '<p>Tu peux maintenant te connecter sur <a href="http://localhost:3000/login.html">http://localhost:3000/login.html</a></p>' +
+      '<p>Email: ' + document.getElementById('email').value + '</p>' +
+      '<p>Mot de passe: ' + document.getElementById('password').value + '</p>';
+  } catch (e) {
+    r.innerHTML = '<p style="color:red"><strong>❌ Erreur: ' + e.message + '</strong></p>';
+  }
+}
+</script>
+</body>
+</html>
