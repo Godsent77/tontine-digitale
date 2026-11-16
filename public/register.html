@@ -10,8 +10,15 @@
 <div class="auth-page">
   <div class="auth-box">
     <h2>📝 Inscription</h2>
-    <p class="info-text">Vous devez avoir un code d'acces de 6 chiffres donne par votre parrain.</p>
+    <p class="info-text">Entrez le code d'accès de 6 chiffres fourni par votre parrain.</p>
     <form id="regForm">
+      
+      <!-- CASE AFFICHOIR DU PARRAIN -->
+      <div class="form-group">
+        <label>Votre Parrain</label>
+        <input type="text" id="sponsorDisplay" class="input-readonly" readonly value="Détection du parrain...">
+      </div>
+
       <div class="form-group">
         <label>Nom complet</label>
         <input type="text" id="fullName" required placeholder="Jean Dupont">
@@ -22,24 +29,37 @@
       </div>
       <div class="form-group">
         <label>Mot de passe</label>
-        <input type="password" id="password" required placeholder="Min 6 caracteres" minlength="6">
+        <input type="password" id="password" required placeholder="Min 6 caractères" minlength="6">
       </div>
       <div class="form-group">
-        <label>Code d'acces (6 chiffres)</label>
+        <label>Code d'accès (6 chiffres)</label>
         <input type="text" id="accessCode" required placeholder="123456" maxlength="6">
       </div>
       <button type="submit" class="btn btn-primary btn-block">S'inscrire</button>
     </form>
-    <p class="auth-link">Deja un compte ? <a href="/login.html">Se connecter</a></p>
+    <p class="auth-link">Déjà un compte ? <a href="/login">Se connecter</a></p>
     <p class="auth-link"><a href="/">← Retour accueil</a></p>
   </div>
 </div>
+
 <script>
+// Récupération automatique du code parrain depuis l'URL (?ref=...)
+const params = new URLSearchParams(window.location.search);
+const ref = params.get('ref') || '';
+const sponsorInput = document.getElementById('sponsorDisplay');
+
+if (ref) {
+  sponsorInput.value = '👥 Parrain : ' + ref;
+  sponsorInput.style.borderColor = '#16a34a'; // Contour vert si parrain détecté
+  sponsorInput.style.color = '#38bdf8';
+} else {
+  sponsorInput.value = '⚠️ Aucun parrain dans le lien';
+  sponsorInput.style.borderColor = '#d97706';
+}
+
 document.getElementById('regForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   try {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref') || '';
     const r = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,7 +74,7 @@ document.getElementById('regForm').addEventListener('submit', async function(e) 
     const d = await r.json();
     if (!r.ok) throw new Error(d.error);
     localStorage.setItem('tk', d.token);
-    window.location.href = '/dashboard.html';
+    window.location.href = '/dashboard';
   } catch (err) {
     alert(err.message);
   }
