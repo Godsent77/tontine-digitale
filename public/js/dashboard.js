@@ -1,18 +1,26 @@
 const token = localStorage.getItem('token');
-if (!token) {
+
+if (!token || token === 'undefined') {
   window.location.href = '/login.html';
 }
 
 let currentUser = null;
 
 async function initDashboard() {
+  if (!token || token === 'undefined') {
+    window.location.href = '/login.html';
+    return;
+  }
+
   try {
     const res = await fetch('/api/donation/my-status', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+
     const data = await res.json();
 
-    if (!data.success) {
+    if (!data.success || !data.user) {
+      alert(data.message || "Session expirée ou invalide. Veuillez vous reconnecter.");
       localStorage.removeItem('token');
       window.location.href = '/login.html';
       return;
@@ -48,7 +56,7 @@ async function fetchUsdtRate() {
       document.getElementById('usdtRateDisplay').innerText = `1 USDT = ${data.rate} FCFA (Binance P2P)`;
     }
   } catch (err) {
-    console.error("Erreur récupération taux USDT", err);
+    console.error("Erreur taux USDT", err);
   }
 }
 

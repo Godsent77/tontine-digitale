@@ -1,58 +1,45 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const path = require('path');
+const cors = require('cors');
+require('dotenv').config();
+
+const { startProgressTracker } = require('./utils/progressTracker');
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Fichiers statiques
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes d'affichage des pages HTML (URL propres)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'register.html'));
-});
-
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
 // Routes API
-const authRoutes = require('./routes/auth');
-const donationRoutes = require('./routes/donation');
-const fusionRoutes = require('./routes/fusion');
-const dashboardRoutes = require('./routes/dashboard');
-const adminRoutes = require('./routes/admin');
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/donation', require('./routes/donation'));
+app.use('/api/fusion', require('./routes/fusion'));
+app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/admin', require('./routes/admin'));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/donation', donationRoutes);
-app.use('/api/fusion', fusionRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
+// Clean HTML Routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tontine';
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log('MongoDB connecte');
+    console.log('Connecté à MongoDB Atlas');
+    startProgressTracker();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('Serveur lance sur http://localhost:' + PORT);
+      console.log(`Serveur démarré sur le port ${PORT}`);
     });
-    require('./utils/progressTracker').startTracker();
   })
   .catch(err => {
-    console.error('Erreur MongoDB:', err.message);
+    console.error('Erreur de connexion MongoDB:', err);
   });

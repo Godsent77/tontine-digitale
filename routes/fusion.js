@@ -1,129 +1,52 @@
 const express = require('express');
-const Fusion = require('../models/Fusion');
-const User = require('../models/User');
-const auth = require('../middleware/auth');
 const router = express.Router();
+const authMiddleware = require('../middleware/auth');
+const Fusion = require('../models/Fusion');
+const Donation = require('../models/Donation');
 
-async function getSponsorChain(userId, depth) {
-  const chain = [];
-  let currentId = userId;
-  for (let i = 0; i < depth; i++) {
-    const user = await User.findById(currentId);
-    if (!user || !user.sponsorId) {
-      chain.push(null);
-      continue;
-    }
-    const sponsor = await User.findById(user.sponsorId);
-    if (!sponsor) {
-      chain.push(null);
-      continue;
-    }
-    chain.push({ fullName: sponsor.fullName, phone: sponsor.phone || sponsor.whatsapp, email: sponsor.email });
-    currentId = sponsor._id;
-  }
-  return chain;
-}
-
-router.get('/my-fusions', auth, async (req, res) => {
+// Obtenir mes fusions actives (où je suis donneur ou receveur)
+router.get('/my-fusions', authMiddleware, async (req, res) => {
   try {
     const fusions = await Fusion.find({
-      $or: [{ payerId: req.userId }, { receiverId: req.userId }]
-    }).sort({ createdAt: -1 });
+      $or: [{ donorId: req.user.id }, { receiverId: req.user.id }],
+      status: 'MATCHED'
+    })
+    .populate('donorId', 'fullName whatsapp email paymentMethods')
+    .populate('receiverId', 'fullName whatsapp email paymentMethods')
+    .sort({ createdAt: -1 });
 
-    const result = [];
-    for (const f of fusions) {
-      const isPayer = String(f.payerId) === String(req.userId);
-      const partnerId = isPayer ? f.receiverId : f.payerId;
-      const partner = await User.findById(partnerId);
+    res.json({ success: true, fusions });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur récupération des fusions.' });
+  }
+});
 
-      const daysRemaining = f.startDate
-        ? Math.max(0, 25 - Math.floor((Date.now() - f.startDate) / 86400000))
-        : 25;
+// Confirmer la réception d'un paiement (Receveur)
+router.post('/confirm-receipt', authMiddleware, async (req, res) => {
+  try {
+    const { fusionId } = req.body;
+    const fusion = await Fusion.findById(fusionId);
 
-      result.push({
-        _id: f._id,
-        role: isPayer ? 'payer' : 'receiver',
-        amount: f.amount,
-        status: f.status,
-        progress: f.progress,
-        daysRemaining,
-        paymentConfirmed: f.paymentConfirmed,
-        receiptConfirmed: f.receiptConfirmed,
-        validatedAt: f.validatedAt,
-        partnerName: partner ? partner.fullName : 'Inconnu',
-        partner
-      });
+    if (!fusion) {
+      return res.status(404).json({ success: false, message: 'Fusion introuvable.' });
     }
 
-    res.json({ fusions: result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    if (fusion.receiverId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Vous n\'êtes pas le receveur de cette fusion.' });
+    }
 
-router.get('/:id/sponsor-contacts', auth, async (req, res) => {
-  try {
-    const fusion = await Fusion.findById(req.params.id);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-
-    const isPayer = String(fusion.payerId) === String(req.userId);
-    const partnerId = isPayer ? fusion.receiverId : fusion.payerId;
-    const chain = await getSponsorChain(partnerId, 3);
-
-    res.json({ s1: chain[0], s2: chain[1], s3: chain[2] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/:id/confirm-payment', auth, async (req, res) => {
-  try {
-    const fusion = await Fusion.findById(req.params.id);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-    if (String(fusion.payerId) !== String(req.userId)) return res.status(403).json({ error: 'Non autorise' });
-
-    fusion.paymentConfirmed = true;
-    fusion.paymentType = req.body.type || 'direct';
-    if (req.body.sponsor) fusion.paymentViaSponsor = req.body.sponsor;
+    fusion.status = 'COMPLETED';
+    fusion.validatedAt = new Date();
     await fusion.save();
 
-    res.json({ message: 'Paiement confirme' });
+    await Donation.updateMany(
+      { _id: { $in: fusion.donationIds } },
+      { $set: { status: 'COMPLETED' } }
+    );
+
+    res.json({ success: true, message: 'Paiement confirmé et fusion terminée avec succès !' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/:id/confirm-receipt', auth, async (req, res) => {
-  try {
-    const fusion = await Fusion.findById(req.params.id);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-    if (String(fusion.receiverId) !== String(req.userId)) return res.status(403).json({ error: 'Non autorise' });
-
-    fusion.receiptConfirmed = true;
-    fusion.status = 'active';
-    fusion.startDate = new Date();
-    fusion.validatedAt = new Date(); // Date et heure de validation
-    fusion.progress = 0;
-    await fusion.save();
-
-    res.json({ message: 'Reception confirmee, transaction validee' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/:id/confirm-forward', auth, async (req, res) => {
-  try {
-    const fusion = await Fusion.findById(req.params.id);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-    if (String(fusion.receiverId) !== String(req.userId)) return res.status(403).json({ error: 'Non autorise' });
-
-    fusion.forwardConfirmed = true;
-    await fusion.save();
-
-    res.json({ message: 'Transfert confirme' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de la confirmation du paiement.' });
   }
 });
 
