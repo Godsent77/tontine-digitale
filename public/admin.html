@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backoffice Fondateur - Tontine Digitale</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.admin-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #38bdf8; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin: 15px 0; }
+.stat-box { background: #0f172a; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #334155; }
+.stat-box h4 { font-size: 0.85em; color: #94a3b8; margin-bottom: 5px; }
+.stat-box .num { font-size: 1.8em; font-weight: 700; color: #38bdf8; }
+.action-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1>👑 Backoffice Fondateur</h1>
+    <div class="header-right">
+      <a href="/dashboard" class="btn btn-sm btn-secondary">🏠 Mon Dashboard</a>
+      <button onclick="logout()" class="btn btn-sm btn-danger">Déconnexion</button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- CARTES STATISTIQUES -->
+    <div class="admin-card">
+      <h3>📊 Statistiques Globales de la Tontine</h3>
+      <div class="stats-grid">
+        <div class="stat-box"><h4>Membres Inscrits</h4><div class="num" id="stUsers">-</div></div>
+        <div class="stat-box"><h4>Volume Circulé</h4><div class="num" id="stVolume">- F</div></div>
+        <div class="stat-box"><h4>Dons en Attente</h4><div class="num" id="stPendingDon">-</div></div>
+        <div class="stat-box"><h4>Fusions Actives (Cycles)</h4><div class="num" id="stActiveFus">-</div></div>
+        <div class="stat-box"><h4>Cycles Terminés (Matures)</h4><div class="num" id="stCompletedFus">-</div></div>
+      </div>
+    </div>
+
+    <!-- ACTIONS DE CONTRÔLE -->
+    <div class="admin-card" style="border-left-color: #16a34a;">
+      <h3>⚡ Actions de Gestion & Fusions</h3>
+      <p>Utilisez ces boutons pour déclencher les mariages automatiques ou accélérer les cycles de gains.</p>
+      
+      <div class="action-btns">
+        <button onclick="triggerFusion()" class="btn btn-success btn-lg">⚡ Lancer la Fusion Automatique Maintenant</button>
+        <button onclick="accelerate(10)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +10%</button>
+        <button onclick="accelerate(25)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +25%</button>
+        <button onclick="accelerate(100)" class="btn btn-info btn-lg">🎉 Passer tous les cycles actifs à 100%</button>
+      </div>
+    </div>
+
+    <!-- LISTE DES MEMBRES -->
+    <div class="admin-card" style="border-left-color: #7c3aed;">
+      <h3>👥 Liste des Membres & Contacts</h3>
+      <div id="usersList"><p>Chargement des membres...</p></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+async function api(u, o) {
+  o = o || {};
+  o.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('tk') }, o.headers || {});
+  var r = await fetch(u, o);
+  var d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Erreur');
+  return d;
+}
+
+function toast(m, t) {
+  t = t || 'success';
+  var d = document.createElement('div');
+  d.className = 'toast toast-' + t;
+  d.textContent = m;
+  document.body.appendChild(d);
+  setTimeout(function() { d.remove(); }, 4000);
+}
+
+function fmt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+async function loadAdminStats() {
+  try {
+    var d = await api('/api/admin/stats');
+    document.getElementById('stUsers').textContent = d.totalUsers;
+    document.getElementById('stVolume').textContent = fmt(d.totalVolume) + ' F';
+    document.getElementById('stPendingDon').textContent = d.pendingDonations;
+    document.getElementById('stActiveFus').textContent = d.activeFusions;
+    document.getElementById('stCompletedFus').textContent = d.completedFusions;
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function triggerFusion() {
+  try {
+    toast('Exécution de la fusion en cours...');
+    var d = await api('/api/admin/trigger-fusion', { method: 'POST' });
+    toast(d.message);
+    loadAdminStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function accelerate(boost) {
+  if (!confirm('Voulez-vous vraiment accélérer la progression de tous les cycles actifs de +' + boost + '% ?')) return;
+  try {
+    var d = await api('/api/admin/accelerate-progress', { method: 'POST', body: JSON.stringify({ boostPercent: boost }) });
+    toast(d.message);
+    loadAdminStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadAllUsers() {
+  try {
+    var d = await api('/api/admin/users');
+    var c = document.getElementById('usersList');
+    if (!d.users || d.users.length === 0) { c.innerHTML = '<div class="empty">Aucun membre</div>'; return; }
+    var h = '';
+    d.users.forEach(function(u) {
+      var dStr = new Date(u.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      h += '<div class="fusion-card" style="margin-bottom:8px;">';
+      h += '<strong>👤 ' + u.fullName + '</strong> (' + (u.sponsorCode === 'AUCUN' ? '👑 Fondateur' : 'Membre') + ')<br>';
+      h += '📧 Email: ' + u.email + ' | 💬 WhatsApp: ' + (u.whatsapp || u.phone || '-') + '<br>';
+      h += '<small style="color:#94a3b8">Code Parrain: ' + u.referralCode + ' | Inscrit le: ' + dStr + '</small>';
+      h += '</div>';
+    });
+    c.innerHTML = h;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function logout() { localStorage.removeItem('tk'); location.href = '/login'; }
+
+loadAdminStats();
+loadAllUsers();
+</script>
+</body>
+</html>

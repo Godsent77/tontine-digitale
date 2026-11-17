@@ -50,6 +50,18 @@ async function loadDash() {
     var d = await api('/api/dashboard');
     U = d.user;
     F = d.fusions || [];
+    if (U.sponsorCode === 'AUCUN' || (U.referralCode && U.referralCode.indexOf('FONDATEUR') === 0)) {
+  if (!document.getElementById('btnAdmin')) {
+    var hRight = document.querySelector('.header-right');
+    var btnA = document.createElement('a');
+    btnA.id = 'btnAdmin';
+    btnA.href = '/admin';
+    btnA.className = 'btn btn-sm btn-warning';
+    btnA.style.marginRight = '8px';
+    btnA.textContent = '👑 Backoffice';
+    hRight.insertBefore(btnA, hRight.firstChild);
+  }
+}
     document.getElementById('uName').textContent = U.fullName;
     document.getElementById('uEmail').textContent = U.email;
     document.getElementById('uPhone').textContent = U.whatsapp || U.phone || '-';
