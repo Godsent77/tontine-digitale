@@ -1,141 +1,128 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tableau de bord - Tontine Digitale</title>
-<link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de Bord - Tontine Digitale</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; }
+    header { background: #27ae60; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .nav-tabs { display: flex; background: #2c3e50; overflow-x: auto; }
+    .nav-tabs button { background: none; border: none; color: white; padding: 12px 20px; cursor: pointer; font-size: 14px; font-weight: bold; white-space: nowrap; }
+    .nav-tabs button.active { background: #27ae60; }
+    .container { max-width: 1000px; margin: 20px auto; padding: 15px; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .btn-don { background: #27ae60; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; margin: 5px; font-weight: bold; }
+    .btn-don:hover { background: #219150; }
+    .code-box { background: #eef9f1; border: 2px dashed #27ae60; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+    .code-display { font-size: 28px; font-weight: bold; color: #27ae60; letter-spacing: 4px; margin: 10px 0; }
+  </style>
 </head>
 <body>
-<div class="app">
-  <header class="header">
-    <h1>🌍 Tontine Digitale</h1>
-    <div class="header-right">
-      <span id="uName"></span>
-      <button onclick="logout()" class="btn btn-sm btn-danger">Déconnexion</button>
+
+  <header>
+    <div>
+      <h2 style="margin: 0; font-size: 20px;">🤝 Tontine Digitale</h2>
+      <small>Membre : <strong id="userNameDisplay">...</strong> | Code : <strong id="userCodeDisplay">...</strong></small>
+    </div>
+    <div>
+      <button id="btnAdminNav" onclick="window.location.href='/admin'" style="display: none; background: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px;">👑 Backoffice</button>
+      <button onclick="logout()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Déconnexion</button>
     </div>
   </header>
-  <nav class="tabs">
-    <button class="tab-btn active" data-tab="donation" onclick="tab('donation')">💰 Donation</button>
-    <button class="tab-btn" data-tab="fusion" onclick="tab('fusion')">🤝 Fusions</button>
-    <button class="tab-btn" data-tab="progress" onclick="tab('progress')">📈 Progression</button>
-    <button class="tab-btn" data-tab="historique" onclick="tab('historique')">📜 Historique</button>
-    <button class="tab-btn" data-tab="parrainage" onclick="tab('parrainage')">👥 Parrainage</button>
-    <button class="tab-btn" data-tab="profil" onclick="tab('profil')">⚙️ Profil</button>
-  </nav>
-  <main class="main">
 
-    <div class="tab-pane active" id="tab-donation">
+  <div class="nav-tabs">
+    <button onclick="showTab('donations')" id="tabBtn-donations" class="active">🎁 Faire un Don</button>
+    <button onclick="showTab('fusions')" id="tabBtn-fusions">⚡ Fusions Actives</button>
+    <button onclick="showTab('progress')" id="tabBtn-progress">📈 Progression</button>
+    <button onclick="showTab('history')" id="tabBtn-history">📜 Historique</button>
+    <button onclick="showTab('referrals')" id="tabBtn-referrals">👥 Parrainage</button>
+    <button onclick="showTab('profile')" id="tabBtn-profile">👤 Mon Profil</button>
+  </div>
+
+  <div class="container">
+
+    <div id="usdtRateDisplay" style="background: #34495e; color: white; padding: 10px; border-radius: 6px; text-align: center; font-weight: bold; margin-bottom: 15px;">Chargement du taux USDT...</div>
+
+    <!-- Onglet 1 : Faire un don -->
+    <div id="tab-donations">
+      <div class="code-box">
+        <h3>🔑 Générer un Code d'Accès Parrain (30 Secondes)</h3>
+        <p style="font-size: 13px; color: #555;">Donnez ce code à votre nouveau filleul lors de son inscription.</p>
+        <div id="generatedCodeDisplay" class="code-display">------</div>
+        <p id="codeTimer" style="font-weight: bold; color: #e67e22;"></p>
+        <button onclick="generateAccessCode()" style="background: #8e44ad; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">Générer un Code</button>
+      </div>
+
       <div class="card">
-        <h3>Faire une donation</h3>
-        <p>Limite quotidienne : <span id="dlUsed">0</span> / 50 000 F utilisé | Reste : <span id="dlRem">50 000</span> F</p>
-        <div class="progress-bar-sm"><div class="progress-fill" id="dlBar" style="width:0%"></div></div>
-        <div class="amount-grid">
-          <button class="amt-btn" id="amt5000" onclick="selA(5000)">5 000 F</button>
-          <button class="amt-btn" id="amt10000" onclick="selA(10000)">10 000 F</button>
-          <button class="amt-btn" id="amt20000" onclick="selA(20000)">20 000 F</button>
-          <button class="amt-btn" id="amt50000" onclick="selA(50000)">50 000 F</button>
+        <h3>💳 Choisir le Montant de votre Don :</h3>
+        <p style="font-size: 13px; color: #666;">Limite journalière : Maximum 50 000 FCFA / jour</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <button class="btn-don" onclick="submitDonation(5000)">5 000 FCFA</button>
+          <button class="btn-don" onclick="submitDonation(10000)">10 000 FCFA</button>
+          <button class="btn-don" onclick="submitDonation(20000)">20 000 FCFA</button>
+          <button class="btn-don" onclick="submitDonation(50000)">50 000 FCFA</button>
         </div>
-        <input type="hidden" id="donAmt" value="0">
-        <h4>Moyen de paiement</h4>
-        <div class="pay-grid" id="payGrid"></div>
-        <div class="summary" id="summary" style="display:none">
-          <p>Vous donnez : <strong id="sumAmt">0 F</strong></p>
-          <p>Vous recevrez : <strong id="sumRec">0 F</strong> dans 25 jours</p>
-          <div id="usdtInfo" style="display:none" class="usdt-box">
-            <p>Montant USDT : <strong id="usdtAmt">0 USDT</strong></p>
-            <p>Taux : <span id="usdtRate">-</span></p>
-          </div>
+      </div>
+
+      <div class="card">
+        <h3>Mes Dons en Attente</h3>
+        <div id="myDonationsList">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Onglet 2 : Fusions Actives -->
+    <div id="tab-fusions" style="display: none;">
+      <div class="card">
+        <h3>⚡ Mes Fusions Actives</h3>
+        <div id="activeFusionsList">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Onglet 3 : Progression -->
+    <div id="tab-progress" style="display: none;">
+      <div class="card">
+        <h3>📈 Progression de mes Cycles (+4%/24h)</h3>
+        <div id="progressionList">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Onglet 4 : Historique -->
+    <div id="tab-history" style="display: none;">
+      <div class="card">
+        <h3>📜 Historique de mes Transactions Validées</h3>
+        <div id="historyList">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Onglet 5 : Parrainage -->
+    <div id="tab-referrals" style="display: none;">
+      <div class="card">
+        <h3>👥 Mes Filleuls Directs</h3>
+        <div id="referralsList">Chargement...</div>
+      </div>
+    </div>
+
+    <!-- Onglet 6 : Profil -->
+    <div id="tab-profile" style="display: none;">
+      <div class="card">
+        <h3>👤 Mes Informations & Moyens de Paiement</h3>
+        <div style="display: grid; gap: 10px; max-width: 400px;">
+          <label>Nom Complet : <input type="text" id="profileName" readonly style="width:100%; padding:8px;"></label>
+          <label>Email : <input type="text" id="profileEmail" readonly style="width:100%; padding:8px;"></label>
+          <label>WhatsApp : <input type="text" id="profileWhatsapp" readonly style="width:100%; padding:8px;"></label>
+          <label>Orange Money : <input type="text" id="profileOrange" readonly style="width:100%; padding:8px;"></label>
+          <label>Wave : <input type="text" id="profileWave" readonly style="width:100%; padding:8px;"></label>
+          <label>Moov : <input type="text" id="profileMoov" readonly style="width:100%; padding:8px;"></label>
+          <label>MTN : <input type="text" id="profileMtn" readonly style="width:100%; padding:8px;"></label>
+          <label>USDT BEP20 : <input type="text" id="profileUsdt" readonly style="width:100%; padding:8px;"></label>
         </div>
-        <button onclick="mkDon()" class="btn btn-primary btn-block btn-lg">Confirmer la donation</button>
       </div>
     </div>
 
-    <div class="tab-pane" id="tab-fusion">
-      <div class="card">
-        <h3>Mes fusions en cours</h3>
-        <div id="fusionList"><p>Chargement...</p></div>
-      </div>
-    </div>
+  </div>
 
-    <div class="tab-pane" id="tab-progress">
-      <div class="card">
-        <h3>Ma progression (Gains)</h3>
-        <div id="progressList"><p>Chargement...</p></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-historique">
-      <div class="card">
-        <h3>📜 Historique des transactions validées</h3>
-        <div id="historyList"><p>Chargement de l'historique...</p></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-parrainage">
-      <div class="card">
-        <h3>Parrainage</h3>
-        <p>Votre lien de parrainage :</p>
-        <input type="text" id="uLink" readonly class="input-readonly" onclick="this.select()">
-        <p class="mt-1">Votre code parrain : <strong id="uSponsor"></strong></p>
-        <hr>
-        <h4>Générer un code d'accès pour un filleul</h4>
-        <p>Le code est valable 30 secondes. Donnez-le à votre filleul pour qu'il s'inscrive.</p>
-        <button onclick="genCode()" class="btn btn-primary">Générer un code</button>
-        <div class="code-display">
-          <input type="text" id="accessCode" readonly class="input-readonly code-big">
-          <span id="codeTimer"></span>
-        </div>
-        <hr>
-        <h4>👥 Mes Filleuls Inscrits</h4>
-        <div id="referralsList"><p>Chargement de vos filleuls...</p></div>
-        <hr>
-        <h4>Mes devoirs en cours</h4>
-        <div id="dutiesList"><p>Chargement...</p></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-profil">
-      <div class="card">
-        <h3>Mon profil</h3>
-        <p>Email : <strong id="uEmail"></strong> | WhatsApp : <strong id="uPhone"></strong></p>
-        <form onsubmit="event.preventDefault();saveP()">
-          <div class="form-group">
-            <label>Nom complet</label>
-            <input type="text" id="pFullName">
-          </div>
-          <div class="form-group">
-            <label>Numéro WhatsApp / Téléphone</label>
-            <input type="text" id="pWhatsapp">
-          </div>
-          <h4>Moyens de paiement</h4>
-          <div class="form-group">
-            <label>Orange Money</label>
-            <input type="text" id="pOrange" placeholder="07XXXXXXXX">
-          </div>
-          <div class="form-group">
-            <label>Wave</label>
-            <input type="text" id="pWave" placeholder="01XXXXXXXX">
-          </div>
-          <div class="form-group">
-            <label>Moov Money</label>
-            <input type="text" id="pMoov" placeholder="01XXXXXXXX">
-          </div>
-          <div class="form-group">
-            <label>MTN Money</label>
-            <input type="text" id="pMtn" placeholder="05XXXXXXXX">
-          </div>
-          <div class="form-group">
-            <label>USDT BEP20 (adresse wallet)</label>
-            <input type="text" id="pUsdt" placeholder="0x...">
-          </div>
-          <button type="submit" class="btn btn-primary btn-block">Sauvegarder</button>
-        </form>
-      </div>
-    </div>
-
-  </main>
-</div>
-<script src="/js/dashboard.js"></script>
+  <script src="/js/dashboard.js"></script>
 </body>
 </html>

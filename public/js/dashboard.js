@@ -1,28 +1,21 @@
 const token = localStorage.getItem('token');
 
-if (!token || token === 'undefined') {
-  window.location.href = '/login.html';
+if (!token) {
+  window.location.href = '/login';
 }
 
 let currentUser = null;
 
 async function initDashboard() {
-  if (!token || token === 'undefined') {
-    window.location.href = '/login.html';
-    return;
-  }
-
   try {
     const res = await fetch('/api/donation/my-status', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
     const data = await res.json();
 
     if (!data.success || !data.user) {
-      alert(data.message || "Session expirée ou invalide. Veuillez vous reconnecter.");
       localStorage.removeItem('token');
-      window.location.href = '/login.html';
+      window.location.href = '/login';
       return;
     }
 
@@ -44,7 +37,7 @@ async function initDashboard() {
     showTab('donations');
     loadMyDonations();
   } catch (err) {
-    console.error("Erreur d'initialisation du dashboard:", err);
+    console.error("Erreur init dashboard:", err);
   }
 }
 
@@ -53,7 +46,7 @@ async function fetchUsdtRate() {
     const res = await fetch('/api/donation/usdt-rate');
     const data = await res.json();
     if (data.success && data.rate) {
-      document.getElementById('usdtRateDisplay').innerText = `1 USDT = ${data.rate} FCFA (Binance P2P)`;
+      document.getElementById('usdtRateDisplay').innerText = `📊 Taux Direct : 1 USDT = ${data.rate} FCFA (Binance P2P)`;
     }
   } catch (err) {
     console.error("Erreur taux USDT", err);
@@ -64,7 +57,12 @@ function showTab(tabName) {
   const tabs = ['donations', 'fusions', 'progress', 'history', 'referrals', 'profile'];
   tabs.forEach(t => {
     const el = document.getElementById(`tab-${t}`);
+    const btn = document.getElementById(`tabBtn-${t}`);
     if (el) el.style.display = (t === tabName) ? 'block' : 'none';
+    if (btn) {
+      if (t === tabName) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
   });
 
   if (tabName === 'fusions') loadActiveFusions();
@@ -92,7 +90,7 @@ async function generateAccessCode() {
         timeLeft--;
         if (timeLeft <= 0) {
           clearInterval(interval);
-          timerEl.innerText = "Code expiré. Régénérez-en un nouveau.";
+          timerEl.innerText = "Code expiré.";
           document.getElementById('generatedCodeDisplay').innerText = "------";
         } else {
           timerEl.innerText = `Valide pendant ${timeLeft}s`;
@@ -102,12 +100,12 @@ async function generateAccessCode() {
       alert(data.message);
     }
   } catch (err) {
-    alert("Erreur lors de la génération du code.");
+    alert("Erreur génération code.");
   }
 }
 
 async function submitDonation(amount) {
-  if (!confirm(`Confirmez-vous la demande de don de ${amount.toLocaleString()} FCFA ?`)) return;
+  if (!confirm(`Confirmez-vous le don de ${amount.toLocaleString()} FCFA ?`)) return;
 
   try {
     const res = await fetch('/api/donation/create', {
@@ -122,7 +120,7 @@ async function submitDonation(amount) {
     alert(data.message);
     loadMyDonations();
   } catch (err) {
-    alert("Erreur lors de la création du don.");
+    alert("Erreur création du don.");
   }
 }
 
@@ -136,23 +134,20 @@ async function loadMyDonations() {
     container.innerHTML = '';
 
     if (!data.donations || data.donations.length === 0) {
-      container.innerHTML = '<p>Aucun don actif pour le moment.</p>';
+      container.innerHTML = '<p style="color:#777;">Aucun don actif actuellement.</p>';
       return;
     }
 
     data.donations.forEach(d => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.style.cssText = 'background:#f8f9fa; padding:12px; border-radius:6px; margin-bottom:10px; border-left:4px solid #27ae60;';
       card.innerHTML = `
-        <h3>Montant : ${d.amount.toLocaleString()} FCFA</h3>
-        <p>Statut : <strong>${d.status}</strong></p>
-        <p>Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}</p>
+        <h4 style="margin:0; color:#2c3e50;">Montant : ${d.amount.toLocaleString()} FCFA</h4>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#666;">Statut : <strong style="color:#e67e22;">${d.status}</strong> | Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}</p>
       `;
       container.appendChild(card);
     });
-  } catch (err) {
-    console.error("Erreur chargement dons", err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function loadActiveFusions() {
@@ -165,59 +160,45 @@ async function loadActiveFusions() {
     container.innerHTML = '';
 
     if (!data.fusions || data.fusions.length === 0) {
-      container.innerHTML = '<p>Aucune fusion active pour le moment.</p>';
+      container.innerHTML = '<p style="color:#777;">Aucune fusion active pour le moment.</p>';
       return;
     }
 
     data.fusions.forEach(f => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.style.cssText = 'background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px; border-left:4px solid #3498db;';
       card.innerHTML = `
-        <h3>Fusion #${f._id.substr(-6)}</h3>
-        <p>Progression : <strong>${f.progressPercent}%</strong></p>
-        <p>Montant Attendu : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong></p>
-        ${f.isPaused ? '<p style="color:red; font-weight:bold;">⏸️ Cycle actuellement en pause</p>' : ''}
+        <h4 style="margin:0;">Fusion #${f._id.substr(-6)} - Gain Prévu : ${(f.expectedAmount || 0).toLocaleString()} FCFA</h4>
+        <p>Progression : <strong>${f.progressPercent}%</strong> ${f.isPaused ? '<span style="color:red; font-weight:bold;">(Mise en Pause)</span>' : ''}</p>
         ${f.donorId && f.donorId._id === currentUser._id ? `
-          <div style="background:#eef; padding:10px; border-radius:5px; margin-top:10px;">
-            <h4>Coordonnées du Receveur :</h4>
-            <p>Nom : <strong>${f.receiverId.fullName}</strong></p>
-            <p>WhatsApp : <strong>${f.receiverId.whatsapp || 'N/A'}</strong></p>
-            <p>Orange Money : ${f.receiverId.paymentMethods?.orange || 'N/A'}</p>
-            <p>Wave : ${f.receiverId.paymentMethods?.wave || 'N/A'}</p>
-            <p>Moov : ${f.receiverId.paymentMethods?.moov || 'N/A'}</p>
-            <p>MTN : ${f.receiverId.paymentMethods?.mtn || 'N/A'}</p>
-            <p>USDT (BEP20) : ${f.receiverId.paymentMethods?.usdtAddress || 'N/A'}</p>
+          <div style="background:#eef; padding:10px; border-radius:5px; font-size:13px;">
+            <strong>Receveur :</strong> ${f.receiverId.fullName} (${f.receiverId.whatsapp || 'N/A'})<br>
+            <strong>Orange :</strong> ${f.receiverId.paymentMethods?.orange || 'N/A'} | <strong>Wave :</strong> ${f.receiverId.paymentMethods?.wave || 'N/A'}<br>
+            <strong>Moov :</strong> ${f.receiverId.paymentMethods?.moov || 'N/A'} | <strong>MTN :</strong> ${f.receiverId.paymentMethods?.mtn || 'N/A'}<br>
+            <strong>USDT BEP20 :</strong> ${f.receiverId.paymentMethods?.usdtAddress || 'N/A'}
           </div>
         ` : ''}
         ${f.receiverId && f.receiverId._id === currentUser._id ? `
-          <button onclick="confirmReceipt('${f._id}')" class="btn btn-success" style="margin-top:10px;">✅ Confirmer Réception du Paiement</button>
+          <button onclick="confirmReceipt('${f._id}')" style="background:#27ae60; color:white; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px;">✅ Confirmer Réception du Paiement</button>
         ` : ''}
       `;
       container.appendChild(card);
     });
-  } catch (err) {
-    console.error("Erreur chargement fusions", err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function confirmReceipt(fusionId) {
-  if (!confirm("Confirmez-vous avoir reçu les fonds sur votre compte ?")) return;
-
+  if (!confirm("Confirmez-vous la réception du paiement ?")) return;
   try {
     const res = await fetch('/api/fusion/confirm-receipt', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ fusionId })
     });
     const data = await res.json();
     alert(data.message);
     loadActiveFusions();
-  } catch (err) {
-    alert("Erreur lors de la confirmation.");
-  }
+  } catch (err) { alert("Erreur confirmation."); }
 }
 
 async function loadProgression() {
@@ -230,25 +211,23 @@ async function loadProgression() {
     container.innerHTML = '';
 
     if (!data.fusions || data.fusions.length === 0) {
-      container.innerHTML = '<p>Aucun cycle en progression.</p>';
+      container.innerHTML = '<p style="color:#777;">Aucun cycle en progression.</p>';
       return;
     }
 
     data.fusions.forEach(f => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.style.cssText = 'background:#fff; padding:15px; border-radius:6px; margin-bottom:15px; border:1px solid #ddd;';
       card.innerHTML = `
-        <h3>Cycle de Progression - ${f.progressPercent}%</h3>
-        <div style="background:#ddd; border-radius:10px; height:20px; width:100%; overflow:hidden;">
+        <h4 style="margin:0 0 10px 0;">Cycle de Progression - ${f.progressPercent}%</h4>
+        <div style="background:#eee; border-radius:10px; height:18px; width:100%; overflow:hidden;">
           <div style="background:#27ae60; height:100%; width:${f.progressPercent}%;"></div>
         </div>
-        <p style="margin-top:8px;">Gain Prévu (x2) : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong> dans 25 jours</p>
+        <p style="font-size:13px; margin:8px 0 0 0; color:#555;">Gain Prévu (x2) : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong> dans 25 jours</p>
       `;
       container.appendChild(card);
     });
-  } catch (err) {
-    console.error("Erreur chargement progression", err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function loadHistory() {
@@ -261,24 +240,21 @@ async function loadHistory() {
     container.innerHTML = '';
 
     if (!data.history || data.history.length === 0) {
-      container.innerHTML = '<p>Aucune transaction terminée dans l\'historique.</p>';
+      container.innerHTML = '<p style="color:#777;">Aucune transaction terminée dans l\'historique.</p>';
       return;
     }
 
     data.history.forEach(h => {
       const card = document.createElement('div');
-      card.className = 'card';
-      const validationDate = h.validatedAt ? new Date(h.validatedAt).toLocaleString('fr-FR') : 'Date non disponible';
+      card.style.cssText = 'background:#f8f9fa; padding:12px; border-radius:6px; margin-bottom:10px; border-left:4px solid #27ae60;';
+      const vDate = h.validatedAt ? new Date(h.validatedAt).toLocaleString('fr-FR') : 'Date non disponible';
       card.innerHTML = `
-        <h3>📜 Don/Paiement de ${h.amount.toLocaleString()} FCFA</h3>
-        <p>Statut : <span style="color:green; font-weight:bold;">TERMINÉ / VALIDÉ</span></p>
-        <p>Validé le : <strong>${validationDate}</strong></p>
+        <h4 style="margin:0; color:#27ae60;">📜 Don/Paiement de ${h.amount.toLocaleString()} FCFA - VALIDÉ</h4>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#666;">Validé le : <strong>${vDate}</strong></p>
       `;
       container.appendChild(card);
     });
-  } catch (err) {
-    console.error("Erreur historique", err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 async function loadReferrals() {
@@ -291,24 +267,20 @@ async function loadReferrals() {
     container.innerHTML = '';
 
     if (!data.referrals || data.referrals.length === 0) {
-      container.innerHTML = '<p>Vous n\'avez aucun filleul directement parrainé pour l\'instant.</p>';
+      container.innerHTML = '<p style="color:#777;">Vous n\'avez aucun filleul parrainé pour l\'instant.</p>';
       return;
     }
 
     data.referrals.forEach(ref => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.style.cssText = 'background:#fff; padding:12px; border-radius:6px; margin-bottom:10px; border:1px solid #eee;';
       card.innerHTML = `
-        <h3>👤 ${ref.fullName}</h3>
-        <p>WhatsApp : <strong>${ref.whatsapp || 'N/A'}</strong></p>
-        <p>Email : ${ref.email}</p>
-        <p>Inscrit le : ${new Date(ref.createdAt).toLocaleDateString('fr-FR')}</p>
+        <h4 style="margin:0;">👤 ${ref.fullName}</h4>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#555;">WhatsApp : <strong>${ref.whatsapp || 'N/A'}</strong> | Email : ${ref.email}</p>
       `;
       container.appendChild(card);
     });
-  } catch (err) {
-    console.error("Erreur parrainage", err);
-  }
+  } catch (err) { console.error(err); }
 }
 
 function loadProfile() {
@@ -325,7 +297,7 @@ function loadProfile() {
 
 function logout() {
   localStorage.removeItem('token');
-  window.location.href = '/login.html';
+  window.location.href = '/login';
 }
 
 initDashboard();

@@ -5,32 +5,96 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion - Tontine Digitale</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+    }
+    .auth-card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 400px;
+    }
+    .auth-card h2 {
+      margin-top: 0;
+      color: #2c3e50;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #333;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    .btn-submit {
+      width: 100%;
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .btn-submit:hover {
+      background: #219150;
+    }
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: none;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-  <div class="auth-container">
-    <div class="auth-card">
-      <h2>🔐 Connexion à votre compte</h2>
-      <p style="color: #666; margin-bottom: 20px;">Entrez vos identifiants pour accéder à votre espace.</p>
 
-      <div id="errorAlert" class="alert alert-danger" style="display: none; background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 15px;"></div>
+  <div class="auth-card">
+    <h2>🔐 Connexion</h2>
+    <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">Accédez à votre espace Tontine Digitale</p>
 
-      <form id="loginForm">
-        <div class="form-group" style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Email :</label>
-          <input type="email" id="email" required placeholder="votre@email.com" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-        </div>
+    <div id="errorAlert" class="alert-error"></div>
 
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mot de passe :</label>
-          <input type="password" id="password" required placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-        </div>
-
-        <button type="submit" style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold;">Se Connecter</button>
-      </form>
-
-      <div style="margin-top: 20px; text-align: center;">
-        <p>Pas encore inscrit ? <a href="/register" style="color: #27ae60; font-weight: bold;">S'inscrire ici</a></p>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Adresse Email :</label>
+        <input type="email" id="email" required placeholder="votre@email.com">
       </div>
+
+      <div class="form-group">
+        <label>Mot de passe :</label>
+        <input type="password" id="password" required placeholder="••••••••">
+      </div>
+
+      <button type="submit" class="btn-submit">Se Connecter</button>
+    </form>
+
+    <div style="margin-top: 20px; text-align: center; font-size: 14px;">
+      <p>Pas encore membre ? <a href="/register" style="color: #27ae60; font-weight: bold; text-decoration: none;">S'inscrire ici</a></p>
     </div>
   </div>
 
@@ -56,11 +120,11 @@
           localStorage.setItem('token', data.token);
           window.location.href = '/dashboard';
         } else {
-          errorAlert.innerText = data.message || "Email ou mot de passe incorrect.";
+          errorAlert.innerText = data.message || "Identifiants incorrects.";
           errorAlert.style.display = 'block';
         }
       } catch (err) {
-        errorAlert.innerText = "Erreur de connexion au serveur. Réessayez.";
+        errorAlert.innerText = "Erreur de connexion au serveur.";
         errorAlert.style.display = 'block';
       }
     });
