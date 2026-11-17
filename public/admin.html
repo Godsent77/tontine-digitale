@@ -154,7 +154,7 @@
 
   </div>
 
-  <!-- Modale Promotion & Tâches Déléguées (Cachée par défaut) -->
+  <!-- Modale Promotion & Tâches Déléguées -->
   <div id="permModal" class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-top: 0; color: #8e44ad; border: none;">⭐ Promouvoir & Déléguer des Tâches</h3>
@@ -214,6 +214,8 @@
           document.getElementById('subFounderBanner').style.display = 'block';
           document.getElementById('subFounderName').innerText = `⭐ Panel Sous-Fondateur - ${currentUser.fullName}`;
           document.getElementById('subFounderPermsCount').innerText = `${currentUser.permissions ? currentUser.permissions.length : 0} tâche(s) déléguée(s) accordée(s)`;
+        } else {
+          document.getElementById('backofficeTitle').innerText = `👑 Backoffice Fondateur Principal`;
         }
 
         if (hasPerm('see_stats')) fetchStats();

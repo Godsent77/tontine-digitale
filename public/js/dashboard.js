@@ -23,11 +23,12 @@ async function initDashboard() {
     document.getElementById('userNameDisplay').innerText = currentUser.fullName;
     document.getElementById('userCodeDisplay').innerText = currentUser.referralCode;
 
-    // Afficher le lien de parrainage
+    // Définir le lien de parrainage
     const referralLink = `${window.location.origin}/register?ref=${currentUser.referralCode}`;
-    document.getElementById('myReferralLink').value = referralLink;
+    const linkInput = document.getElementById('myReferralLink');
+    if (linkInput) linkInput.value = referralLink;
 
-    // Gestion du bouton Backoffice pour Fondateur & Sous-Fondateur
+    // Bouton de redirection vers le Backoffice
     const btnAdmin = document.getElementById('btnAdminNav');
     if (btnAdmin) {
       if (currentUser.role === 'founder' || currentUser.role === 'sub_founder') {
@@ -42,7 +43,7 @@ async function initDashboard() {
     showTab('donations');
     loadMyDonations();
   } catch (err) {
-    console.error("Erreur init dashboard:", err);
+    console.error("Erreur d'initialisation du dashboard:", err);
   }
 }
 
@@ -146,7 +147,7 @@ async function loadMyDonations() {
     container.innerHTML = '';
 
     if (!data.donations || data.donations.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Aucune demande de don active.</p>';
+      container.innerHTML = '<p style="color:#7f8c8d;">Aucune demande de don active actuellement.</p>';
       return;
     }
 

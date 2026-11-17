@@ -7,7 +7,7 @@ const Donation = require('../models/Donation');
 const Fusion = require('../models/Fusion');
 const { runFusionCycle } = require('../utils/fusionEngine');
 
-// 0. Récupérer le profil admin / sous-fondateur connecté
+// 0. Récupérer les infos de l'admin / sous-fondateur connecté
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');

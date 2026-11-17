@@ -19,7 +19,7 @@
     </div>
   </header>
 
-  <!-- Onglets de Navigation -->
+  <!-- Navigation par Onglets -->
   <div class="nav-tabs">
     <button onclick="showTab('donations')" id="tabBtn-donations" class="active">🎁 Faire un Don</button>
     <button onclick="showTab('fusions')" id="tabBtn-fusions">⚡ Fusions Actives</button>
@@ -31,37 +31,16 @@
 
   <div class="container">
 
-    <!-- Bannière Taux USDT -->
+    <!-- Bannière Taux USDT Live -->
     <div id="usdtRateDisplay" style="background-color: #2c3e50; color: #ffffff; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px;">
       📊 Chargement du taux USDT Binance P2P...
     </div>
 
     <!-- Onglet 1 : Faire un Don -->
     <div id="tab-donations">
-      
-      <!-- Lien de Parrainage Personnel -->
-      <div class="referral-box">
-        <h3 style="margin-top: 0; color: #1e8449; border: none; padding: 0;">🔗 Votre Lien de Parrainage Personnel</h3>
-        <p style="font-size: 13px; color: #2c3e50;">Partagez ce lien avec vos futurs filleuls pour qu'ils s'inscrivent directement sous vous :</p>
-        <div class="referral-input-group">
-          <input type="text" id="myReferralLink" readonly>
-          <button onclick="copyReferralLink()" class="btn btn-success">📋 Copier mon lien</button>
-        </div>
-      </div>
-
-      <!-- Générateur de Code 30s -->
-      <div class="code-box">
-        <h3 style="margin-top: 0; color: #d35400; border: none; padding: 0;">🔑 Générer un Code d'Accès de Parrain (30 s)</h3>
-        <p style="font-size: 13px; color: #7f8c8d;">Générez un code éphémère de 30 secondes pour autoriser l'inscription d'un nouveau filleul :</p>
-        <div id="generatedCodeDisplay" class="code-display">------</div>
-        <p id="codeTimer" style="font-weight: bold; color: #e67e22; margin-bottom: 10px;"></p>
-        <button onclick="generateAccessCode()" class="btn btn-purple">⚡ Générer un Code</button>
-      </div>
-
-      <!-- Choix de Dons -->
       <div class="card">
         <h3>💳 Choisir le Montant de votre Don :</h3>
-        <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 15px;">Progression automatique x2 en 25 jours (+4%/24h). Limite journalière : Max 50 000 FCFA/jour.</p>
+        <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 15px;">Progression x2 en 25 jours (+4%/24h). Limite journalière : Max 50 000 FCFA/jour.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 12px;">
           <button class="btn-don" onclick="submitDonation(5000)">5 000 FCFA</button>
           <button class="btn-don" onclick="submitDonation(10000)">10 000 FCFA</button>
@@ -70,7 +49,6 @@
         </div>
       </div>
 
-      <!-- Mes Dons en attente -->
       <div class="card">
         <h3>📋 Mes Demandes de Dons en Attente</h3>
         <div id="myDonationsList">Chargement...</div>
@@ -80,7 +58,7 @@
     <!-- Onglet 2 : Fusions Actives -->
     <div id="tab-fusions" style="display: none;">
       <div class="card">
-        <h3>⚡ Mes Fusions Actives (Acheteur / Receveur)</h3>
+        <h3>⚡ Mes Fusions Actives</h3>
         <div id="activeFusionsList">Chargement...</div>
       </div>
     </div>
@@ -101,12 +79,34 @@
       </div>
     </div>
 
-    <!-- Onglet 5 : Parrainage -->
+    <!-- Onglet 5 : Parrainage (RESTRUCTURÉ) -->
     <div id="tab-referrals" style="display: none;">
+      
+      <!-- Lien de Parrainage Personnel -->
+      <div class="referral-box">
+        <h3 style="margin-top: 0; color: #1e8449; border: none; padding: 0;">🔗 Votre Lien de Parrainage Personnel</h3>
+        <p style="font-size: 13px; color: #2c3e50;">Partagez ce lien avec vos futurs filleuls pour qu'ils s'inscrivent sous votre parrainage :</p>
+        <div class="referral-input-group">
+          <input type="text" id="myReferralLink" readonly>
+          <button onclick="copyReferralLink()" class="btn btn-success">📋 Copier mon lien</button>
+        </div>
+      </div>
+
+      <!-- Générateur de Code 30 Secondes -->
+      <div class="code-box">
+        <h3 style="margin-top: 0; color: #d35400; border: none; padding: 0;">🔑 Générer un Code d'Accès Parrain (Valable 30s)</h3>
+        <p style="font-size: 13px; color: #7f8c8d;">Générez un code éphémère de 30 secondes pour valider l'accès à l'inscription d'un nouveau filleul :</p>
+        <div id="generatedCodeDisplay" class="code-display">------</div>
+        <p id="codeTimer" style="font-weight: bold; color: #e67e22; margin-bottom: 10px;"></p>
+        <button onclick="generateAccessCode()" class="btn btn-purple">⚡ Générer un Code d'Accès</button>
+      </div>
+
+      <!-- Liste des Filleuls -->
       <div class="card">
         <h3>👥 Mes Filleuls Directs & Contacts</h3>
         <div id="referralsList">Chargement...</div>
       </div>
+
     </div>
 
     <!-- Onglet 6 : Mon Profil -->
