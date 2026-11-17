@@ -1,117 +1,662 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inscription - Tontine Digitale</title>
-<link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inscription Officielle - TontinePro P2P</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    :root {
+      --primary: #27ae60;
+      --primary-dark: #1e8449;
+      --secondary: #2c3e50;
+      --accent: #f39c12;
+      --light-bg: #f4f7f6;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #eef5f2 0%, #dcebe5 100%);
+      color: var(--secondary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ================= NAVBAR HAUT ================= */
+    .top-nav {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      padding: 14px 5%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--secondary);
+    }
+
+    .brand-logo span.icon {
+      background: linear-gradient(135deg, #27ae60, #16a085);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
+    }
+
+    .brand-logo span.highlight {
+      color: var(--primary);
+    }
+
+    .nav-right-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-nav-outline {
+      text-decoration: none;
+      padding: 9px 20px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--secondary);
+      border: 2px solid #dce1e7;
+      transition: all 0.25s;
+    }
+
+    .btn-nav-outline:hover {
+      border-color: var(--secondary);
+      background: var(--secondary);
+      color: var(--white);
+    }
+
+    .btn-nav-login {
+      text-decoration: none;
+      padding: 10px 22px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--white);
+      background: var(--secondary);
+      transition: all 0.25s;
+    }
+
+    .btn-nav-login:hover {
+      background: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    /* ================= CONTENEUR INSCRIPTION ================= */
+    .register-wrapper {
+      max-width: 860px;
+      width: 100%;
+      margin: 35px auto 60px;
+      padding: 0 4%;
+    }
+
+    .register-card {
+      background: var(--white);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .register-banner {
+      background: linear-gradient(135deg, #1a2a3a 0%, #1e4d3b 55%, #27ae60 100%);
+      color: var(--white);
+      padding: 35px 40px;
+      text-align: center;
+    }
+
+    .register-banner .badge-top {
+      display: inline-block;
+      background: rgba(243, 156, 18, 0.25);
+      border: 1px solid #f39c12;
+      color: #f1c40f;
+      padding: 5px 15px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .register-banner h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .register-banner p {
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 0.96rem;
+    }
+
+    .register-body {
+      padding: 36px 40px;
+    }
+
+    /* BANNIÈRE PARRAIN EN VERT */
+    .sponsor-Banner-box {
+      background: linear-gradient(135deg, #e8f8f5, #d4efdf);
+      border: 2px solid #27ae60;
+      color: #145a32;
+      padding: 15px 20px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 1.02rem;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .sponsor-status-tag {
+      background: #27ae60;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    /* TITRES DE SECTIONS DU FORMULAIRE */
+    .form-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: var(--secondary);
+      padding-bottom: 10px;
+      margin: 26px 0 18px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+
+    .form-section-title:first-of-type {
+      margin-top: 0;
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .input-group {
+      margin-bottom: 14px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #34495e;
+      margin-bottom: 6px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 13px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 0.96rem;
+      color: var(--secondary);
+      background: #f8fafc;
+      transition: all 0.2s;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: var(--white);
+      box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.12);
+    }
+
+    /* Mise en valeur spéciale du code 30 secondes */
+    .code-30s-highlight input {
+      border-color: #f39c12;
+      background: #fffdf6;
+      font-weight: 800;
+      letter-spacing: 3px;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+
+    /* Badges des moyens de paiement */
+    .pay-label-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .lbl-orange { background: #fff3e0; color: #e65100; }
+    .lbl-wave   { background: #e1f5fe; color: #0277bd; }
+    .lbl-mtn    { background: #fffde7; color: #f57f17; }
+    .lbl-moov   { background: #e8eaf6; color: #283593; }
+    .lbl-usdt   { background: #e8f8f5; color: #117a65; }
+
+    .btn-submit-register {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      color: var(--white);
+      font-size: 1.1rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(39, 174, 96, 0.35);
+      transition: all 0.25s ease;
+      margin-top: 20px;
+    }
+
+    .btn-submit-register:hover {
+      background: linear-gradient(135deg, #1e8449, #27ae60);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(39, 174, 96, 0.5);
+    }
+
+    .btn-submit-register:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .alert-box {
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.94rem;
+      margin-bottom: 22px;
+      display: none;
+    }
+
+    .alert-error {
+      background: #fdecea;
+      color: #c0392b;
+      border: 1px solid #f5c6cb;
+    }
+
+    .alert-success {
+      background: #e8f8f5;
+      color: #1e8449;
+      border: 1px solid #a3e4d7;
+    }
+
+    .register-footer {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid #edf2f7;
+      font-size: 0.95rem;
+      color: #636e72;
+    }
+
+    .register-footer a {
+      color: var(--primary-dark);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    @media (max-width: 680px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+      .register-body, .register-banner {
+        padding: 26px 22px;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="auth-page" style="padding: 30px 15px;">
-  <div class="auth-box" style="max-width: 500px;">
-    <h2>📝 Inscription</h2>
-    <p class="info-text">Remplissez vos informations et moyens de paiement pour valider votre compte.</p>
-    <form id="regForm">
-      
-      <div class="form-group">
-        <label>Votre Parrain</label>
-        <input type="text" id="sponsorDisplay" class="input-readonly" readonly value="Détection du parrain...">
+
+  <!-- ================= NAVBAR HAUT ================= -->
+  <nav class="top-nav">
+    <a href="/" class="brand-logo">
+      <span class="icon">🤝</span>
+      <div>Tontine<span class="highlight">Pro</span></div>
+    </a>
+
+    <div class="nav-right-buttons">
+      <a href="/" class="btn-nav-outline">🏠 Accueil</a>
+      <a href="/login" class="btn-nav-login">🔑 Connexion</a>
+    </div>
+  </nav>
+
+  <!-- ================= FORMULAIRE D'INSCRIPTION ================= -->
+  <div class="register-wrapper">
+    <div class="register-card">
+
+      <div class="register-banner">
+        <span class="badge-top">🚀 Rejoignez le Réseau P2P</span>
+        <h1>Créer mon Compte Membre</h1>
+        <p>Remplissez vos informations et validez avec le code d'accès de 30 secondes fourni par votre parrain</p>
       </div>
 
-      <div class="form-group">
-        <label>Nom complet *</label>
-        <input type="text" id="fullName" required placeholder="Jean Dupont">
-      </div>
-      <div class="form-group">
-        <label>Email *</label>
-        <input type="email" id="email" required placeholder="votre@email.com">
-      </div>
-      <div class="form-group">
-        <label>Mot de passe *</label>
-        <input type="password" id="password" required placeholder="Min 6 caractères" minlength="6">
-      </div>
-      <div class="form-group">
-        <label>Code d'accès parrain (6 chiffres) *</label>
-        <input type="text" id="accessCode" required placeholder="123456" maxlength="6">
-      </div>
+      <div class="register-body">
 
-      <hr style="border:0; border-top:1px solid #334155; margin: 20px 0;">
-      <h4 style="color:#38bdf8; margin-bottom:15px;">📱 Contacts & Moyens de paiement</h4>
+        <!-- AFFICHAGE DU PARRAIN EN VERT -->
+        <div class="sponsor-Banner-box" id="sponsorInfoBox">
+          <span id="sponsorDisplay">👥 Parrain : En attente du code parrain...</span>
+          <span class="sponsor-status-tag" id="sponsorBadge">Parrainage Requis</span>
+        </div>
 
-      <div class="form-group">
-        <label>Numéro WhatsApp *</label>
-        <input type="text" id="whatsapp" required placeholder="+225 0700000000">
-      </div>
-      <div class="form-group">
-        <label>Numéro Orange Money</label>
-        <input type="text" id="orange_money" placeholder="07XXXXXXXX">
-      </div>
-      <div class="form-group">
-        <label>Numéro Wave</label>
-        <input type="text" id="wave" placeholder="01XXXXXXXX">
-      </div>
-      <div class="form-group">
-        <label>Numéro Moov Money</label>
-        <input type="text" id="moov_money" placeholder="01XXXXXXXX">
-      </div>
-      <div class="form-group">
-        <label>Numéro MTN Money</label>
-        <input type="text" id="mtn_money" placeholder="05XXXXXXXX">
-      </div>
-      <div class="form-group">
-        <label>Adresse USDT BEP20</label>
-        <input type="text" id="usdt_bep20" placeholder="0x...">
-      </div>
+        <div id="registerAlert" class="alert-box"></div>
 
-      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:20px;">S'inscrire</button>
-    </form>
-    <p class="auth-link">Déjà un compte ? <a href="/login">Se connecter</a></p>
-    <p class="auth-link"><a href="/">← Retour accueil</a></p>
+        <form id="registerForm">
+
+          <!-- SECTION 1 : PARRAINAGE & CODE 30 SECONDES -->
+          <div class="form-section-title">
+            <span>🔐 1. Validation du Parrainage</span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="input-group">
+              <label for="sponsorCode">👥 Code du Parrain *</label>
+              <input
+                type="text"
+                id="sponsorCode"
+                placeholder="Ex: FONDATEUR"
+                required
+              />
+            </div>
+
+            <div class="input-group code-30s-highlight">
+              <label for="accessCode">⏱️ Code d'accès (Valide 30s) *</label>
+              <input
+                type="text"
+                id="accessCode"
+                placeholder="Code à 6 chiffres"
+                maxlength="6"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- SECTION 2 : INFORMATIONS PERSONNELLES -->
+          <div class="form-section-title">
+            <span>👤 2. Vos Informations Personnelles</span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="input-group">
+              <label for="fullName">Nom & Prénoms complets *</label>
+              <input
+                type="text"
+                id="fullName"
+                placeholder="Ex: Konan Jean"
+                required
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="whatsapp">💬 Numéro WhatsApp Actif *</label>
+              <input
+                type="text"
+                id="whatsapp"
+                placeholder="Ex: +225 0700000000"
+                required
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="email">📧 Adresse Email *</label>
+              <input
+                type="email"
+                id="email"
+                placeholder="votre@email.com"
+                required
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="password">🔒 Mot de passe *</label>
+              <input
+                type="password"
+                id="password"
+                placeholder="Minimum 6 caractères"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- SECTION 3 : MOYENS DE PAIEMENT POUR RECEVOIR VOS DONS -->
+          <div class="form-section-title">
+            <span>💳 3. Vos Comptes de Réception des Dons (Remplissez au moins un)</span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="input-group">
+              <label for="orangeMoney">
+                <span class="pay-label-badge lbl-orange">🟠 Orange Money</span>
+              </label>
+              <input
+                type="text"
+                id="orangeMoney"
+                placeholder="Numéro Orange Money"
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="wave">
+                <span class="pay-label-badge lbl-wave">🔵 Wave</span>
+              </label>
+              <input
+                type="text"
+                id="wave"
+                placeholder="Numéro Wave"
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="mtnMoney">
+                <span class="pay-label-badge lbl-mtn">🟡 MTN Mobile Money</span>
+              </label>
+              <input
+                type="text"
+                id="mtnMoney"
+                placeholder="Numéro MTN MoMo"
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="moovMoney">
+                <span class="pay-label-badge lbl-moov">🟣 Moov Money</span>
+              </label>
+              <input
+                type="text"
+                id="moovMoney"
+                placeholder="Numéro Moov Money"
+              />
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top: 6px;">
+            <label for="usdtBep20">
+              <span class="pay-label-badge lbl-usdt">💎 Adresse Crypto USDT (Réseau BEP20 - BSC)</span>
+            </label>
+            <input
+              type="text"
+              id="usdtBep20"
+              placeholder="0x... (Optionnel - Votre adresse USDT BEP20)"
+            />
+          </div>
+
+          <button type="submit" class="btn-submit-register" id="registerBtn">
+            ✅ Valider mon Inscription Maintenant
+          </button>
+        </form>
+
+        <div class="register-footer">
+          Vous possédez déjà un compte membre ?
+          <a href="/login">🔑 Connectez-vous ici</a>
+        </div>
+
+      </div>
+    </div>
   </div>
-</div>
 
-<script>
-const params = new URLSearchParams(window.location.search);
-const ref = params.get('ref') || '';
-const sponsorInput = document.getElementById('sponsorDisplay');
+  <script>
+    const sponsorInput = document.getElementById('sponsorCode');
+    const sponsorDisplay = document.getElementById('sponsorDisplay');
+    const sponsorBadge = document.getElementById('sponsorBadge');
 
-if (ref) {
-  sponsorInput.value = '👥 Parrain : ' + ref;
-  sponsorInput.style.borderColor = '#16a34a';
-  sponsorInput.style.color = '#38bdf8';
-} else {
-  sponsorInput.value = '⚠️ Aucun parrain dans le lien';
-  sponsorInput.style.borderColor = '#d97706';
-}
+    // Vérifier le parrain via l'API
+    async function verifySponsor(code) {
+      const cleanCode = (code || '').trim();
+      if (!cleanCode) {
+        sponsorDisplay.textContent = '👥 Parrain : En attente du code parrain...';
+        sponsorBadge.textContent = 'Code requis';
+        return;
+      }
 
-document.getElementById('regForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  try {
-    const r = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fullName: document.getElementById('fullName').value,
-        email: document.getElementById('email').value,
-        password: document.getElementById('password').value,
-        accessCode: document.getElementById('accessCode').value,
-        referralCode: ref,
-        whatsapp: document.getElementById('whatsapp').value,
-        orange_money: document.getElementById('orange_money').value,
-        wave: document.getElementById('wave').value,
-        moov_money: document.getElementById('moov_money').value,
-        mtn_money: document.getElementById('mtn_money').value,
-        usdt_bep20: document.getElementById('usdt_bep20').value
-      })
+      try {
+        const res = await fetch(`/api/auth/check-sponsor/${encodeURIComponent(cleanCode)}`);
+        const data = await res.json();
+        if (res.ok && data.sponsorName) {
+          sponsorDisplay.textContent = `👥 Parrain : ${data.sponsorName} (${data.referralCode || cleanCode})`;
+          sponsorBadge.textContent = '✓ Parrain Vérifié';
+        } else {
+          sponsorDisplay.textContent = `👥 Parrain : Code "${cleanCode}"`;
+          sponsorBadge.textContent = 'Non trouvé';
+        }
+      } catch (e) {
+        sponsorDisplay.textContent = `👥 Parrain : ${cleanCode}`;
+      }
+    }
+
+    // Lecture automatique du paramètre ?ref= dans l'URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const refCode = params.get('ref');
+      if (refCode) {
+        sponsorInput.value = refCode.trim();
+        verifySponsor(refCode.trim());
+      }
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error);
-    localStorage.setItem('tk', d.token);
-    window.location.href = '/dashboard';
-  } catch (err) {
-    alert(err.message);
-  }
-});
-</script>
+
+    sponsorInput.addEventListener('blur', () => {
+      verifySponsor(sponsorInput.value);
+    });
+
+    function showAlert(message, type = 'error') {
+      const alertBox = document.getElementById('registerAlert');
+      alertBox.className = 'alert-box ' + (type === 'success' ? 'alert-success' : 'alert-error');
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const registerBtn = document.getElementById('registerBtn');
+
+      const fullName = document.getElementById('fullName').value.trim();
+      const whatsapp = document.getElementById('whatsapp').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const sponsorCode = document.getElementById('sponsorCode').value.trim();
+      const accessCode = document.getElementById('accessCode').value.trim();
+
+      const orangeMoney = document.getElementById('orangeMoney').value.trim();
+      const wave = document.getElementById('wave').value.trim();
+      const mtnMoney = document.getElementById('mtnMoney').value.trim();
+      const moovMoney = document.getElementById('moovMoney').value.trim();
+      const usdtBep20 = document.getElementById('usdtBep20').value.trim();
+
+      if (!orangeMoney && !wave && !mtnMoney && !moovMoney && !usdtBep20) {
+        showAlert('Veuillez renseigner au moins un moyen de paiement pour recevoir vos dons.', 'error');
+        return;
+      }
+
+      registerBtn.disabled = true;
+      registerBtn.textContent = '⏳ Création de votre compte...';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName,
+            email,
+            password,
+            phone: whatsapp,
+            whatsapp,
+            sponsorCode,
+            accessCode,
+            orangeMoney,
+            wave,
+            mtnMoney,
+            moovMoney,
+            usdtBep20,
+            paymentMethods: {
+              orangeMoney,
+              wave,
+              mtnMoney,
+              moovMoney,
+              usdtBep20
+            }
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showAlert(data.message || "Erreur lors de l'inscription.", 'error');
+          registerBtn.disabled = false;
+          registerBtn.textContent = '✅ Valider mon Inscription Maintenant';
+          return;
+        }
+
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          if (data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+          }
+          showAlert('🎉 Inscription réussie ! Redirection vers votre espace...', 'success');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 700);
+        } else {
+          showAlert('🎉 Inscription réussie ! Redirection vers la connexion...', 'success');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 900);
+        }
+      } catch (err) {
+        showAlert('Erreur réseau. Veuillez vérifier votre connexion.', 'error');
+        registerBtn.disabled = false;
+        registerBtn.textContent = '✅ Valider mon Inscription Maintenant';
+      }
+    });
+  </script>
 </body>
 </html>
