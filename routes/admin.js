@@ -7,6 +7,19 @@ const Donation = require('../models/Donation');
 const Fusion = require('../models/Fusion');
 const { runFusionCycle } = require('../utils/fusionEngine');
 
+// 0. Récupérer le profil admin / sous-fondateur connecté
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user || (user.role !== 'founder' && user.role !== 'sub_founder')) {
+      return res.status(403).json({ success: false, message: 'Accès réservé aux administrateurs.' });
+    }
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+});
+
 // 1. Obtenir les statistiques globales
 router.get('/stats', authMiddleware, adminAuth('see_stats'), async (req, res) => {
   try {
@@ -183,7 +196,6 @@ router.post('/users/:userId/validate-donation', authMiddleware, adminAuth('valid
   try {
     const userId = req.params.userId;
 
-    // Rechercher les dons PENDING concernant ce membre (soit comme donneur, soit comme receveur)
     const pendingDonation = await Donation.findOne({
       $or: [{ donorId: userId }, { receiverId: userId }],
       status: 'PENDING'
@@ -196,7 +208,6 @@ router.post('/users/:userId/validate-donation', authMiddleware, adminAuth('valid
     pendingDonation.status = 'COMPLETED';
     await pendingDonation.save();
 
-    // Mettre à jour la fusion associée si elle existe
     const fusion = await Fusion.findOne({ donationIds: pendingDonation._id });
     if (fusion) {
       fusion.status = 'COMPLETED';

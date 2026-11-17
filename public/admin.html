@@ -6,10 +6,26 @@
   <title>Backoffice Administration - Tontine Digitale</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 0;
+    }
     .admin-container {
       max-width: 1200px;
       margin: 20px auto;
       padding: 20px;
+    }
+    .subfounder-banner {
+      background: #8e44ad;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .stats-grid {
       display: grid;
@@ -41,8 +57,9 @@
       border-radius: 8px;
       margin-bottom: 25px;
       display: flex;
-      gap: 15px;
+      justify-content: space-between;
       align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .table-responsive {
       overflow-x: auto;
@@ -76,12 +93,36 @@
     .status-active { color: #27ae60; font-weight: bold; }
     .status-blocked { color: #e74c3c; font-weight: bold; }
 
-    /* Modal de promotion / permissions */
+    .btn-action-group {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-action {
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: bold;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-action:hover {
+      opacity: 0.85;
+    }
+    .btn-validate { background: #27ae60; color: white; }
+    .btn-block { background: #e67e22; color: white; }
+    .btn-unblock { background: #2980b9; color: white; }
+    .btn-promote { background: #8e44ad; color: white; }
+    .btn-demote { background: #95a5a6; color: white; }
+
+    /* Modal de promotion (Masqué par défaut) */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
-      display: none; /* Masqué par défaut */
+      display: none;
       justify-content: center;
       align-items: center;
       z-index: 9999;
@@ -107,27 +148,20 @@
       align-items: center;
       gap: 10px;
       background: #f8f9fa;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border-radius: 6px;
-    }
-    .btn-action {
-      padding: 6px 12px;
-      margin: 2px;
-      font-size: 12px;
-      border: none;
-      border-radius: 4px;
       cursor: pointer;
     }
-    .btn-validate { background: #27ae60; color: white; }
-    .btn-block { background: #e67e22; color: white; }
-    .btn-promote { background: #8e44ad; color: white; }
-    .btn-demote { background: #95a5a6; color: white; }
+    .perm-item input {
+      width: 18px;
+      height: 18px;
+    }
   </style>
 </head>
 <body>
 
   <header style="background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-    <h2>👑 Backoffice Administrateur</h2>
+    <h2 id="backofficeTitle">👑 Backoffice Administrateur</h2>
     <div>
       <a href="/dashboard" style="color: white; text-decoration: none; margin-right: 15px;">⬅ Tableau de bord</a>
       <button onclick="logout()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Déconnexion</button>
@@ -136,8 +170,16 @@
 
   <div class="admin-container">
 
-    <!-- Statistiques globales -->
-    <div class="stats-grid">
+    <!-- Banner pour Sous-Fondateur -->
+    <div id="subFounderBanner" class="subfounder-banner" style="display: none;">
+      <div>
+        <h3 style="margin: 0;" id="subFounderName">⭐ Panel Sous-Fondateur</h3>
+        <span style="font-size: 13px;" id="subFounderPermsCount">Permissions déléguées actives</span>
+      </div>
+    </div>
+
+    <!-- Section Statistiques -->
+    <div id="statsSection" class="stats-grid" style="display: none;">
       <div class="stat-card">
         <h4>Membres Totaux</h4>
         <p id="statUsers">0</p>
@@ -156,42 +198,44 @@
       </div>
     </div>
 
-    <!-- Actions Rapides -->
-    <div class="actions-panel">
-      <h3>Actions Système :</h3>
-      <button onclick="triggerFusion()" style="background: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+    <!-- Actions Système (Fusion Manuelle) -->
+    <div id="fusionActionPanel" class="actions-panel" style="display: none;">
+      <h3 style="margin:0;">⚙️ Actions Système</h3>
+      <button onclick="triggerFusion()" style="background: #27ae60; color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;">
         ⚡ Déclencher la Fusion Manuelle
       </button>
     </div>
 
-    <!-- Liste des Membres avec Boutons d'Action -->
-    <h3>👥 Gestion des Membres</h3>
-    <div class="table-responsive">
-      <table>
-        <thead>
-          <tr>
-            <th>Nom / Pseudo</th>
-            <th>Email / Code</th>
-            <th>WhatsApp</th>
-            <th>Rôle</th>
-            <th>Statut</th>
-            <th style="text-align: center;">Actions Administrateur</th>
-          </tr>
-        </thead>
-        <tbody id="membersTableBody">
-          <tr><td colspan="6" style="text-align: center;">Chargement des membres...</td></tr>
-        </tbody>
-      </table>
+    <!-- Tableau des Membres -->
+    <div id="membersSection" style="display: none;">
+      <h3>👥 Liste des Membres & Actions</h3>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom / Pseudo</th>
+              <th>Email / Code</th>
+              <th>WhatsApp</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th style="text-align: center;">Actions Administrateur</th>
+            </tr>
+          </thead>
+          <tbody id="membersTableBody">
+            <tr><td colspan="6" style="text-align: center; padding: 20px;">Chargement des membres...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
 
-  <!-- Modal de Promotion / Délégation de Tâches (Caché par défaut) -->
+  <!-- Modal de Promotion & Délégation de Tâches -->
   <div id="permModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-top:0;">⭐ Promouvoir & Déléguer des Tâches</h3>
-      <p id="modalUserTarget" style="font-weight: bold; color: #8e44ad;"></p>
-      <p style="font-size: 13px; color: #666;">Cochez les tâches que vous souhaitez déléguer à ce membre pour en faire un <strong>Sous-Fondateur</strong> :</p>
+      <h3 style="margin-top:0; color: #8e44ad;">⭐ Promouvoir & Déléguer des Tâches</h3>
+      <p id="modalUserTarget" style="font-weight: bold; font-size: 16px; color: #2c3e50;"></p>
+      <p style="font-size: 13px; color: #666;">Cochez les tâches que vous souhaitez déléguer à ce membre pour lui accorder le rôle de <strong>Sous-Fondateur</strong> :</p>
 
       <form id="permForm">
         <div class="perm-grid">
@@ -218,10 +262,62 @@
 
   <script>
     const token = localStorage.getItem('token');
+    let currentUser = null;
     let currentTargetUserId = null;
 
     if (!token) {
       window.location.href = '/login.html';
+    }
+
+    // Helper vérification permission
+    function hasPerm(permKey) {
+      if (!currentUser) return false;
+      if (currentUser.role === 'founder') return true;
+      return Array.isArray(currentUser.permissions) && currentUser.permissions.includes(permKey);
+    }
+
+    // Chargement profil courant
+    async function initAdminPage() {
+      try {
+        const res = await fetch('/api/admin/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        
+        if (!data.success) {
+          alert("Accès refusé.");
+          window.location.href = '/dashboard';
+          return;
+        }
+
+        currentUser = data.user;
+
+        // Configurer le titre et le bandeau
+        if (currentUser.role === 'sub_founder') {
+          document.getElementById('backofficeTitle').innerText = `⭐ Panel Sous-Fondateur`;
+          document.getElementById('subFounderBanner').style.display = 'flex';
+          document.getElementById('subFounderName').innerText = `⭐ Panel Sous-Fondateur - ${currentUser.fullName}`;
+          document.getElementById('subFounderPermsCount').innerText = `${currentUser.permissions ? currentUser.permissions.length : 0} tâche(s) déléguée(s) accordée(s)`;
+        } else {
+          document.getElementById('backofficeTitle').innerText = `👑 Backoffice Fondateur Principal`;
+        }
+
+        // Affichage dynamique selon permissions
+        if (hasPerm('see_stats')) {
+          document.getElementById('statsSection').style.display = 'grid';
+          fetchStats();
+        }
+
+        if (hasPerm('trigger_fusion')) {
+          document.getElementById('fusionActionPanel').style.display = 'flex';
+        }
+
+        if (hasPerm('see_members')) {
+          document.getElementById('membersSection').style.display = 'block';
+          fetchMembers();
+        }
+
+      } catch (e) {
+        console.error("Erreur d'initialisation", e);
+      }
     }
 
     async function fetchStats() {
@@ -234,9 +330,7 @@
           document.getElementById('statPending').innerText = data.stats.pendingDonations;
           document.getElementById('statFusions').innerText = data.stats.activeFusions;
         }
-      } catch (e) {
-        console.error("Erreur stats", e);
-      }
+      } catch (e) { console.error(e); }
     }
 
     async function fetchMembers() {
@@ -246,14 +340,21 @@
         if (data.success) {
           renderMembers(data.members);
         }
-      } catch (e) {
-        console.error("Erreur membres", e);
-      }
+      } catch (e) { console.error(e); }
     }
 
     function renderMembers(members) {
       const tbody = document.getElementById('membersTableBody');
       tbody.innerHTML = '';
+
+      if (members.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aucun membre inscrit.</td></tr>';
+        return;
+      }
+
+      const canValidate = hasPerm('validate_payment');
+      const canBlock = hasPerm('toggle_block');
+      const canPromote = hasPerm('manage_subfounders');
 
       members.forEach(m => {
         let badgeClass = 'badge-user';
@@ -261,7 +362,26 @@
         if (m.role === 'founder') { badgeClass = 'badge-founder'; roleName = 'Fondateur'; }
         else if (m.role === 'sub_founder') { badgeClass = 'badge-subfounder'; roleName = 'Sous-Fondateur'; }
 
-        const permsEscaped = JSON.stringify(m.permissions || []).replace(/"/g, '&quot;');
+        const permsJson = JSON.stringify(m.permissions || []).replace(/"/g, '&quot;');
+
+        let buttonsHTML = '';
+        if (m.role !== 'founder') {
+          if (canValidate) {
+            buttonsHTML += `<button onclick="adminValidateUser('${m._id}')" class="btn-action btn-validate" title="Valider paiement">✅ Valider</button>`;
+          }
+          if (canBlock) {
+            buttonsHTML += `<button onclick="toggleBlockUser('${m._id}')" class="btn-action ${m.isActive ? 'btn-block' : 'btn-unblock'}">${m.isActive ? '🔒 Bloquer' : '🔓 Débloquer'}</button>`;
+          }
+          if (canPromote) {
+            buttonsHTML += `<button onclick="openPromoteModal('${m._id}', '${m.fullName.replace(/'/g, "\\'")}', '${m.role}', ${permsJson})" class="btn-action btn-promote">⭐ Promouvoir</button>`;
+          }
+        } else {
+          buttonsHTML = '<span style="color:#aaa; font-size:12px; font-weight:bold;">(Fondateur Principal)</span>';
+        }
+
+        if (buttonsHTML === '') {
+          buttonsHTML = '<span style="color:#aaa; font-size:12px;">Consultation seule</span>';
+        }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -271,11 +391,9 @@
           <td><span class="badge ${badgeClass}">${roleName}</span></td>
           <td><span class="${m.isActive ? 'status-active' : 'status-blocked'}">${m.isActive ? 'Actif' : 'Bloqué'}</span></td>
           <td style="text-align: center;">
-            ${m.role !== 'founder' ? `
-              <button onclick="adminValidateUser('${m._id}')" class="btn-action btn-validate" title="Valider un paiement pour ce membre">✅ Valider</button>
-              <button onclick="toggleBlockUser('${m._id}')" class="btn-action btn-block">${m.isActive ? '🔒 Bloquer' : '🔓 Débloquer'}</button>
-              <button onclick="openPromoteModal('${m._id}', '${m.fullName.replace(/'/g, "\\'")}', '${m.role}', ${permsEscaped})" class="btn-action btn-promote">⭐ Promouvoir</button>
-            ` : '<span style="color:#aaa; font-size:12px;">(Fondateur Principal)</span>'}
+            <div class="btn-action-group">
+              ${buttonsHTML}
+            </div>
           </td>
         `;
         tbody.appendChild(tr);
@@ -284,7 +402,7 @@
 
     // 1. Action du bouton VALIDER
     async function adminValidateUser(userId) {
-      if (!confirm("Voulez-vous valider le paiement/don en attente pour ce membre ?")) return;
+      if (!confirm("Voulez-vous valider le don/paiement en attente pour ce membre ?")) return;
       try {
         const res = await fetch(`/api/admin/users/${userId}/validate-donation`, {
           method: 'POST',
@@ -292,10 +410,9 @@
         });
         const data = await res.json();
         alert(data.message);
-        fetchStats();
-      } catch (e) {
-        alert("Erreur lors de la validation.");
-      }
+        if (hasPerm('see_stats')) fetchStats();
+        if (hasPerm('see_members')) fetchMembers();
+      } catch (e) { alert("Erreur lors de la validation."); }
     }
 
     // 2. Action du bouton BLOQUER / DÉBLOQUER
@@ -307,25 +424,21 @@
         });
         const data = await res.json();
         alert(data.message);
-        fetchMembers();
-        fetchStats();
-      } catch (e) {
-        alert("Erreur lors du changement de statut.");
-      }
+        if (hasPerm('see_members')) fetchMembers();
+        if (hasPerm('see_stats')) fetchStats();
+      } catch (e) { alert("Erreur lors de la modification du statut."); }
     }
 
-    // 3. Action du bouton PROMOUVOIR (Ouvre la modale)
+    // 3. Action du bouton PROMOUVOIR
     function openPromoteModal(userId, fullName, role, permissions = []) {
       currentTargetUserId = userId;
       document.getElementById('modalUserTarget').innerText = `Membre : ${fullName}`;
 
-      // Réinitialiser les cases à cocher
       const checkboxes = document.querySelectorAll('input[name="perm"]');
       checkboxes.forEach(cb => {
         cb.checked = permissions.includes(cb.value);
       });
 
-      // Afficher/masquer le bouton de rétrogradation selon le rôle
       const btnDemote = document.getElementById('btnDemote');
       if (role === 'sub_founder') {
         btnDemote.style.display = 'inline-block';
@@ -341,7 +454,6 @@
       currentTargetUserId = null;
     }
 
-    // Enregistrement des tâches déléguées
     document.getElementById('permForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!currentTargetUserId) return;
@@ -362,13 +474,10 @@
         const data = await res.json();
         alert(data.message);
         closePromoteModal();
-        fetchMembers();
-      } catch (e) {
-        alert("Erreur lors de la promotion du membre.");
-      }
+        if (hasPerm('see_members')) fetchMembers();
+      } catch (e) { alert("Erreur lors de la promotion du membre."); }
     });
 
-    // Rétrograder le membre
     async function demoteCurrentMember() {
       if (!currentTargetUserId) return;
       if (!confirm("Voulez-vous vraiment rétrograder ce Sous-Fondateur en Membre Simple ?")) return;
@@ -381,13 +490,10 @@
         const data = await res.json();
         alert(data.message);
         closePromoteModal();
-        fetchMembers();
-      } catch (e) {
-        alert("Erreur lors de la rétrogradation.");
-      }
+        if (hasPerm('see_members')) fetchMembers();
+      } catch (e) { alert("Erreur lors de la rétrogradation."); }
     }
 
-    // Déclencher fusion manuelle
     async function triggerFusion() {
       try {
         const res = await fetch('/api/admin/trigger-fusion', {
@@ -396,10 +502,8 @@
         });
         const data = await res.json();
         alert(data.result ? data.result.message : "Fusion exécutée.");
-        fetchStats();
-      } catch (e) {
-        alert("Erreur déclenchement fusion.");
-      }
+        if (hasPerm('see_stats')) fetchStats();
+      } catch (e) { alert("Erreur déclenchement fusion."); }
     }
 
     function logout() {
@@ -407,9 +511,8 @@
       window.location.href = '/login.html';
     }
 
-    // Chargement initial
-    fetchStats();
-    fetchMembers();
+    // Lancement
+    initAdminPage();
   </script>
 </body>
 </html>

@@ -1,381 +1,341 @@
-let U = null, F = [];
-const AM = [5000, 10000, 20000, 50000];
-const PM = ['orange_money', 'wave', 'moov_money', 'mtn_money', 'usdt_bep20'];
-const PL = { orange_money: 'Orange Money', wave: 'Wave', moov_money: 'Moov Money', mtn_money: 'MTN Money', usdt_bep20: 'USDT BEP20' };
-
-async function api(u, o) {
-  o = o || {};
-  o.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('tk') }, o.headers || {});
-  var r = await fetch(u, o);
-  var d = await r.json();
-  if (!r.ok) throw new Error(d.error || 'Erreur');
-  return d;
+const token = localStorage.getItem('token');
+if (!token) {
+  window.location.href = '/login.html';
 }
 
-function toast(m, t) {
-  t = t || 'success';
-  var d = document.createElement('div');
-  d.className = 'toast toast-' + t;
-  d.textContent = m;
-  document.body.appendChild(d);
-  setTimeout(function() { d.remove(); }, 4000);
-}
+let currentUser = null;
 
-function fmt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
-
-function badge(s) {
-  var m = { pending: 'En attente', active: 'Actif', completed: 'Termine', cancelled: 'Annule', paid: 'Paye', validated: 'Valide' };
-  return '<span class="badge badge-' + s + '">' + (m[s] || s) + '</span>';
-}
-
-function tab(t) {
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === t); });
-  document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + t); });
-  if (t === 'fusion') loadFusion();
-  if (t === 'progress') loadProgress();
-  if (t === 'historique') loadHistory();
-  if (t === 'parrainage') { loadDuties(); loadReferrals(); }
-}
-
-function initPayGrid() {
-  var h = '';
-  PM.forEach(function(p) {
-    h += '<label class="pay-opt"><input type="radio" name="payMethod" value="' + p + '" onchange="updSum()"> ' + PL[p] + '</label>';
-  });
-  document.getElementById('payGrid').innerHTML = h;
-}
-
-async function loadDash() {
+// Initialiser le tableau de bord
+async function initDashboard() {
   try {
-    var d = await api('/api/dashboard');
-    U = d.user;
-    F = d.fusions || [];
-    if (U.sponsorCode === 'AUCUN' || (U.referralCode && U.referralCode.indexOf('FONDATEUR') === 0)) {
-  if (!document.getElementById('btnAdmin')) {
-    var hRight = document.querySelector('.header-right');
-    var btnA = document.createElement('a');
-    btnA.id = 'btnAdmin';
-    btnA.href = '/admin';
-    btnA.className = 'btn btn-sm btn-warning';
-    btnA.style.marginRight = '8px';
-    btnA.textContent = '👑 Backoffice';
-    hRight.insertBefore(btnA, hRight.firstChild);
-  }
-}
-    document.getElementById('uName').textContent = U.fullName;
-    document.getElementById('uEmail').textContent = U.email;
-    document.getElementById('uPhone').textContent = U.whatsapp || U.phone || '-';
-    document.getElementById('uSponsor').textContent = U.sponsorCode || 'Fondateur';
-    document.getElementById('uLink').value = location.origin + '/register?ref=' + U.referralCode;
-    document.getElementById('pFullName').value = U.fullName || '';
-    document.getElementById('pWhatsapp').value = U.whatsapp || U.phone || '';
-    document.getElementById('pOrange').value = U.paymentMethods ? U.paymentMethods.orange_money || '' : '';
-    document.getElementById('pWave').value = U.paymentMethods ? U.paymentMethods.wave || '' : '';
-    document.getElementById('pMoov').value = U.paymentMethods ? U.paymentMethods.moov_money || '' : '';
-    document.getElementById('pMtn').value = U.paymentMethods ? U.paymentMethods.mtn_money || '' : '';
-    document.getElementById('pUsdt').value = U.paymentMethods ? U.paymentMethods.usdt_bep20 || '' : '';
-    var dl = d.dailyLimit || { used: 0, max: 50000, remaining: 50000 };
-    document.getElementById('dlUsed').textContent = fmt(dl.used) + ' F';
-    document.getElementById('dlRem').textContent = fmt(dl.remaining) + ' F';
-    document.getElementById('dlBar').style.width = (dl.used / dl.max * 100) + '%';
-    AM.forEach(function(a) {
-      var b = document.getElementById('amt' + a);
-      if (b) b.disabled = dl.remaining < a;
+    const res = await fetch('/api/donation/my-status', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    initPayGrid();
-  } catch (e) {
-    if (e.message.indexOf('token') >= 0 || e.message.indexOf('expire') >= 0) {
-      localStorage.removeItem('tk');
-      location.href = '/login';
-    } else {
-      toast(e.message, 'error');
-    }
-  }
-}
+    const data = await res.json();
 
-function selA(a) {
-  document.querySelectorAll('.amt-btn').forEach(function(b) { b.classList.remove('selected'); });
-  var b = document.getElementById('amt' + a);
-  if (b && !b.disabled) {
-    b.classList.add('selected');
-    document.getElementById('donAmt').value = a;
-    updSum();
-  }
-}
-
-function updSum() {
-  var a = parseInt(document.getElementById('donAmt').value) || 0;
-  var m = document.querySelector('input[name="payMethod"]:checked');
-  var sum = document.getElementById('summary');
-  if (a > 0 && m) {
-    sum.style.display = 'block';
-    document.getElementById('sumAmt').textContent = fmt(a) + ' F CFA';
-    document.getElementById('sumRec').textContent = fmt(a * 2) + ' F CFA';
-    if (m.value === 'usdt_bep20') calcU(a);
-    else document.getElementById('usdtInfo').style.display = 'none';
-  } else {
-    sum.style.display = 'none';
-  }
-}
-
-async function calcU(a) {
-  try {
-    var d = await api('/api/donation/usdt-rate?amount=' + a);
-    document.getElementById('usdtAmt').textContent = d.usdtAmount + ' USDT';
-    document.getElementById('usdtRate').textContent = '1 USDT = ' + fmt(Math.round(d.rate)) + ' F';
-    document.getElementById('usdtInfo').style.display = 'block';
-  } catch (e) {
-    document.getElementById('usdtInfo').style.display = 'none';
-  }
-}
-
-async function mkDon() {
-  var a = parseInt(document.getElementById('donAmt').value);
-  var m = document.querySelector('input[name="payMethod"]:checked');
-  if (!a || AM.indexOf(a) < 0) return toast('Choisissez un montant', 'error');
-  if (!m) return toast('Choisissez un moyen de paiement', 'error');
-  if (!confirm('Confirmer la donation de ' + fmt(a) + ' F CFA ?\nVous recevrez ' + fmt(a * 2) + ' F CFA dans 25 jours.')) return;
-  try {
-    await api('/api/donation', { method: 'POST', body: JSON.stringify({ amount: a, paymentMethod: m.value }) });
-    toast('Donation creee ! En attente de fusion...');
-    loadDash();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadFusion() {
-  try {
-    var d = await api('/api/fusion/my-fusions');
-    var c = document.getElementById('fusionList');
-    // On filtre pour ne garder que les fusions NON encore confirmees par le receveur
-    var pendingFusions = (d.fusions || []).filter(function(f) { return !f.receiptConfirmed; });
-    if (pendingFusions.length === 0) { c.innerHTML = '<div class="empty">Aucune fusion en attente de paiement</div>'; return; }
-    var h = '';
-    pendingFusions.forEach(function(f) {
-      var isPayer = f.role === 'payer';
-      h += '<div class="fusion-card">';
-      h += '<div class="fusion-header">' + badge(f.status) + ' <strong>' + fmt(f.amount) + ' F CFA</strong></div>';
-      h += '<div class="fusion-body">';
-      h += '<p><strong>Partenaire:</strong> ' + (f.partnerName || 'En attente') + '</p>';
-      if (f.partner) {
-        h += '<p>WhatsApp / Tél: ' + (f.partner.whatsapp || f.partner.phone || '-') + '</p>';
-        h += '<p>Email: ' + (f.partner.email || '-') + '</p>';
-        h += '<div class="pay-details"><strong>Moyens de paiement du receveur:</strong><br>';
-        if (f.partner.paymentMethods) {
-          PM.forEach(function(p) {
-            if (f.partner.paymentMethods[p]) h += '- ' + PL[p] + ': ' + f.partner.paymentMethods[p] + '<br>';
-          });
-        }
-        h += '</div>';
-        if (isPayer) {
-          h += '<div class="sponsor-chain"><strong>Chaine de parrainage:</strong><br>';
-          h += 'Parrain: ' + (f.partner.sponsor1 || '-') + '<br>';
-          h += 'Parrain x2: ' + (f.partner.sponsor2 || '-') + '<br>';
-          h += 'Parrain x3: ' + (f.partner.sponsor3 || '-') + '</div>';
-          h += '<button onclick="showSP(\'' + f._id + '\')" class="btn btn-sm btn-secondary mt-1">Afficher contacts parrains</button>';
-          h += '<div id="sp-' + f._id + '" class="hidden"></div>';
-          h += '<div class="mt-1"><button onclick="confirmPay(\'' + f._id + '\',\'direct\')" class="btn btn-success btn-sm">J\'ai paye directement</button></div>';
-          h += '<div class="mt-1"><button onclick="payVia(\'' + f._id + '\')" class="btn btn-warning btn-sm">Payer via parrain</button></div>';
-          h += '<div id="pvs-' + f._id + '" class="hidden mt-1"></div>';
-        } else {
-          h += '<div class="mt-1"><button onclick="confirmRecv(\'' + f._id + '\')" class="btn btn-success btn-sm">💰 J\'ai bien recu l\'argent (Valider)</button></div>';
-          h += '<div class="mt-1"><button onclick="confirmFwd(\'' + f._id + '\')" class="btn btn-info btn-sm">Mon parrain m\'a transfere l\'argent</button></div>';
-        }
-      }
-      h += '</div></div>';
-    });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-// CHARGEMENT DE L'HISTORIQUE DES TRANSACTIONS VALIDÉES
-async function loadHistory() {
-  try {
-    var d = await api('/api/fusion/my-fusions');
-    var c = document.getElementById('historyList');
-    var validatedFusions = (d.fusions || []).filter(function(f) { return f.receiptConfirmed; });
-    if (validatedFusions.length === 0) { c.innerHTML = '<div class="empty">Aucune transaction validee dans l\'historique</div>'; return; }
-    var h = '';
-    validatedFusions.forEach(function(f) {
-      var isPayer = f.role === 'payer';
-      var vDate = f.validatedAt ? new Date(f.validatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date inconnue';
-      h += '<div class="fusion-card" style="border-left:4px solid #16a34a;">';
-      h += '<div class="fusion-header"><span class="badge badge-validated">✔️ Valide</span> <strong>' + fmt(f.amount) + ' F CFA</strong></div>';
-      h += '<div class="fusion-body">';
-      h += '<p><strong>' + (isPayer ? '💸 Vous avez paye a :' : '💰 Vous avez recu de :') + '</strong> ' + (f.partnerName || 'Partenaire') + '</p>';
-      if (f.partner) {
-        h += '<p>WhatsApp: ' + (f.partner.whatsapp || f.partner.phone || '-') + ' | Email: ' + (f.partner.email || '-') + '</p>';
-      }
-      h += '<p><small style="color:#16a34a; font-weight:600;">📅 Valide le : ' + vDate + '</small></p>';
-      h += '</div></div>';
-    });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function showSP(fid) {
-  try {
-    var d = await api('/api/fusion/' + fid + '/sponsor-contacts');
-    var el = document.getElementById('sp-' + fid);
-    var h = '<div class="sponsor-box"><strong>Contacts parrains:</strong><br>';
-    h += 'A1: ' + (d.s1 ? d.s1.fullName + ' - ' + (d.s1.phone || '-') : '-') + '<br>';
-    h += 'A2: ' + (d.s2 ? d.s2.fullName + ' - ' + (d.s2.phone || '-') : '-') + '<br>';
-    h += 'A3: ' + (d.s3 ? d.s3.fullName + ' - ' + (d.s3.phone || '-') : '-') + '</div>';
-    el.innerHTML = h;
-    el.classList.remove('hidden');
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function confirmPay(fid, type) {
-  if (!confirm('Confirmer que vous avez effectue le paiement ?')) return;
-  try {
-    await api('/api/fusion/' + fid + '/confirm-payment', { method: 'POST', body: JSON.stringify({ type: type || 'direct' }) });
-    toast('Paiement signale !');
-    loadFusion();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function payVia(fid) {
-  var el = document.getElementById('pvs-' + fid);
-  try {
-    var d = await api('/api/fusion/' + fid + '/sponsor-contacts');
-    var h = '<strong>Payer via parrain:</strong><br>';
-    if (d.s1) h += '<button onclick="doPayVia(\'' + fid + '\',\'s1\')" class="btn btn-sm btn-warning mt-05">Payer via B1 (' + d.s1.fullName + ')</button><br>';
-    if (d.s2) h += '<button onclick="doPayVia(\'' + fid + '\',\'s2\')" class="btn btn-sm btn-warning mt-05">Payer via B2 (' + d.s2.fullName + ')</button><br>';
-    if (d.s3) h += '<button onclick="doPayVia(\'' + fid + '\',\'s3\')" class="btn btn-sm btn-warning mt-05">Payer via B3 (' + d.s3.fullName + ')</button>';
-    el.innerHTML = h;
-    el.classList.remove('hidden');
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function doPayVia(fid, sp) {
-  if (!confirm('Vous allez payer via le parrain. Appelez-le pour confirmer.')) return;
-  try {
-    await api('/api/fusion/' + fid + '/confirm-payment', { method: 'POST', body: JSON.stringify({ type: 'via_sponsor', sponsor: sp }) });
-    toast('Paiement via parrain signale !');
-    loadFusion();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function confirmRecv(fid) {
-  if (!confirm('Confirmer que vous avez BIEN RECU l\'argent ?\nCela transférera cette transaction dans l\'Historique et démarrera le cycle de 25 jours.')) return;
-  try {
-    await api('/api/fusion/' + fid + '/confirm-receipt', { method: 'POST' });
-    toast('Reception confirmee ! Transaction enregistree dans l\'Historique.');
-    loadFusion();
-    loadDash();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function confirmFwd(fid) {
-  if (!confirm('Confirmer que votre parrain vous a transfere l\'argent ?')) return;
-  try {
-    await api('/api/fusion/' + fid + '/confirm-forward', { method: 'POST' });
-    toast('Transfert confirme !');
-    loadFusion();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadProgress() {
-  try {
-    var d = await api('/api/fusion/my-fusions');
-    var c = document.getElementById('progressList');
-    var active = (d.fusions || []).filter(function(f) { return f.status === 'active' && f.receiptConfirmed; });
-    if (active.length === 0) { c.innerHTML = '<div class="empty">Aucun cycle en cours</div>'; return; }
-    var h = '';
-    active.forEach(function(f) {
-      var pct = f.progress || 0;
-      var recv = f.amount * 2;
-      var cur = Math.round(recv * (pct / 100));
-      h += '<div class="progress-card">';
-      h += '<h4>' + fmt(f.amount) + ' F -> ' + fmt(recv) + ' F</h4>';
-      h += '<div class="progress-bar-lg"><div class="progress-fill" style="width:' + pct + '%">' + pct.toFixed(1) + '%</div></div>';
-      h += '<p>Gain actuel: ' + fmt(cur) + ' F / ' + fmt(recv) + ' F</p>';
-      h += '<p>Jours restants: ' + (f.daysRemaining || 25) + '</p>';
-      h += '<p>Progression: +4% toutes les 24h</p>';
-      h += '</div>';
-    });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function genCode() {
-  try {
-    var d = await api('/api/auth/generate-code', { method: 'POST' });
-    document.getElementById('accessCode').value = d.code;
-    document.getElementById('codeTimer').textContent = 'Expire dans 30s';
-    toast('Code genere: ' + d.code);
-    var s = 30;
-    var t = setInterval(function() {
-      s--;
-      document.getElementById('codeTimer').textContent = 'Expire dans ' + s + 's';
-      if (s <= 0) { clearInterval(t); document.getElementById('codeTimer').textContent = 'Expire'; }
-    }, 1000);
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadReferrals() {
-  try {
-    var d = await api('/api/dashboard/referrals');
-    var c = document.getElementById('referralsList');
-    if (!d.referrals || d.referrals.length === 0) {
-      c.innerHTML = '<div class="empty">Vous n\'avez aucun filleul pour le moment</div>';
+    if (!data.success) {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
       return;
     }
-    var h = '';
-    d.referrals.forEach(function(ref) {
-      var dStr = new Date(ref.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      h += '<div class="fusion-card" style="margin-bottom:8px;">';
-      h += '<strong>👤 Nom: ' + (ref.fullName || 'Filleul') + '</strong><br>';
-      h += '💬 WhatsApp: ' + (ref.whatsapp || ref.phone || '-') + '<br>';
-      h += '📧 Email: ' + (ref.email || '-') + '<br>';
-      h += '<small style="color:#94a3b8">📅 Inscrit le : ' + dStr + '</small>';
-      h += '</div>';
-    });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
-}
 
-async function saveP() {
-  var d = {
-    fullName: document.getElementById('pFullName').value,
-    whatsapp: document.getElementById('pWhatsapp').value,
-    paymentMethods: {
-      orange_money: document.getElementById('pOrange').value,
-      wave: document.getElementById('pWave').value,
-      moov_money: document.getElementById('pMoov').value,
-      mtn_money: document.getElementById('pMtn').value,
-      usdt_bep20: document.getElementById('pUsdt').value
+    currentUser = data.user;
+    document.getElementById('userNameDisplay').innerText = currentUser.fullName;
+    document.getElementById('userCodeDisplay').innerText = currentUser.referralCode;
+
+    // Affichage conditionnel du bouton Admin / Backoffice
+    const btnAdmin = document.getElementById('btnAdminNav');
+    if (btnAdmin) {
+      if (currentUser.role === 'founder' || currentUser.role === 'sub_founder') {
+        btnAdmin.style.display = 'inline-block';
+        btnAdmin.innerText = currentUser.role === 'founder' ? '👑 Backoffice' : '⭐ Panel Sous-Fondateur';
+      } else {
+        btnAdmin.style.display = 'none';
+      }
     }
-  };
-  try {
-    await api('/api/dashboard/profile', { method: 'PUT', body: JSON.stringify(d) });
-    toast('Profil sauvegarde !');
-    loadDash();
-  } catch (e) { toast(e.message, 'error'); }
+
+    // Charger les informations USDT live
+    fetchUsdtRate();
+
+    // Afficher la section dons par défaut
+    showTab('donations');
+    loadMyDonations();
+  } catch (err) {
+    console.error("Erreur d'initialisation du dashboard:", err);
+  }
 }
 
-async function loadDuties() {
+// Récupérer le taux USDT live Binance
+async function fetchUsdtRate() {
   try {
-    var d = await api('/api/fusion/my-fusions');
-    var c = document.getElementById('dutiesList');
-    var pending = (d.fusions || []).filter(function(f) { return !f.receiptConfirmed; });
-    if (pending.length === 0) { c.innerHTML = '<div class="empty">Aucun devoir en attente</div>'; return; }
-    var h = '';
-    pending.forEach(function(f) {
-      var isPayer = f.role === 'payer';
-      h += '<div class="duty-card ' + (isPayer ? 'duty-pay' : 'duty-recv') + '">';
-      h += '<strong>' + (isPayer ? 'Vous devez PAYER' : 'Vous devez RECEVOIR') + '</strong><br>';
-      h += 'Montant: ' + fmt(f.amount) + ' F CFA<br>';
-      h += 'Statut: ' + badge(f.status);
-      h += '</div>';
+    const res = await fetch('/api/donation/usdt-rate');
+    const data = await res.json();
+    if (data.success && data.rate) {
+      document.getElementById('usdtRateDisplay').innerText = `1 USDT = ${data.rate} FCFA (Binance P2P)`;
+    }
+  } catch (err) {
+    console.error("Erreur récupération taux USDT", err);
+  }
+}
+
+// Navigation par Onglets
+function showTab(tabName) {
+  const tabs = ['donations', 'fusions', 'progress', 'history', 'referrals', 'profile'];
+  tabs.forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    if (el) el.style.display = (t === tabName) ? 'block' : 'none';
+  });
+
+  if (tabName === 'fusions') loadActiveFusions();
+  if (tabName === 'progress') loadProgression();
+  if (tabName === 'history') loadHistory();
+  if (tabName === 'referrals') loadReferrals();
+  if (tabName === 'profile') loadProfile();
+}
+
+// Générer un code d'accès de 30 secondes pour un filleul
+async function generateAccessCode() {
+  try {
+    const res = await fetch('/api/auth/generate-code', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('generatedCodeDisplay').innerText = data.code;
+      let timeLeft = 30;
+      const timerEl = document.getElementById('codeTimer');
+      timerEl.innerText = `Valide pendant ${timeLeft}s`;
+
+      const interval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          timerEl.innerText = "Code expiré. Régénérez-en un nouveau.";
+          document.getElementById('generatedCodeDisplay').innerText = "------";
+        } else {
+          timerEl.innerText = `Valide pendant ${timeLeft}s`;
+        }
+      }, 1000);
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    alert("Erreur lors de la génération du code.");
+  }
+}
+
+// Faire un don
+async function submitDonation(amount) {
+  if (!confirm(`Confirmez-vous la demande de don de ${amount.toLocaleString()} FCFA ?`)) return;
+
+  try {
+    const res = await fetch('/api/donation/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ amount })
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadMyDonations();
+  } catch (err) {
+    alert("Erreur lors de la création du don.");
+  }
+}
+
+// Charger mes dons actifs
+async function loadMyDonations() {
+  try {
+    const res = await fetch('/api/donation/my-donations', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const container = document.getElementById('myDonationsList');
+    container.innerHTML = '';
+
+    if (!data.donations || data.donations.length === 0) {
+      container.innerHTML = '<p>Aucun don actif pour le moment.</p>';
+      return;
+    }
+
+    data.donations.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>Montant : ${d.amount.toLocaleString()} FCFA</h3>
+        <p>Statut : <strong>${d.status}</strong></p>
+
+        <p>Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}</p>
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Erreur chargement dons", err);
+  }
+}
+
+// Charger les fusions actives
+async function loadActiveFusions() {
+  try {
+    const res = await fetch('/api/fusion/my-fusions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const container = document.getElementById('activeFusionsList');
+    container.innerHTML = '';
+
+    if (!data.fusions || data.fusions.length === 0) {
+      container.innerHTML = '<p>Aucune fusion active pour le moment.</p>';
+      return;
+    }
+
+    data.fusions.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>Fusion #${f._id.substr(-6)}</h3>
+        <p>Progression : <strong>${f.progressPercent}%</strong></p>
+        <p>Montant Attendu : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong></p>
+        ${f.isPaused ? '<p style="color:red; font-weight:bold;">⏸️ Cycle actuellement en pause</p>' : ''}
+        ${f.donorId && f.donorId._id === currentUser._id ? `
+          <div style="background:#eef; padding:10px; border-radius:5px; margin-top:10px;">
+            <h4>Coordonnées du Receveur :</h4>
+            <p>Nom : <strong>${f.receiverId.fullName}</strong></p>
+            <p>WhatsApp : <strong>${f.receiverId.whatsapp || 'N/A'}</strong></p>
+            <p>Orange Money : ${f.receiverId.paymentMethods?.orange || 'N/A'}</p>
+            <p>Wave : ${f.receiverId.paymentMethods?.wave || 'N/A'}</p>
+            <p>Moov : ${f.receiverId.paymentMethods?.moov || 'N/A'}</p>
+            <p>MTN : ${f.receiverId.paymentMethods?.mtn || 'N/A'}</p>
+            <p>USDT (BEP20) : ${f.receiverId.paymentMethods?.usdtAddress || 'N/A'}</p>
+          </div>
+        ` : ''}
+        ${f.receiverId && f.receiverId._id === currentUser._id ? `
+          <button onclick="confirmReceipt('${f._id}')" class="btn btn-success" style="margin-top:10px;">✅ Confirmer Réception du Paiement</button>
+        ` : ''}
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Erreur chargement fusions", err);
+  }
+}
+
+// Confirmer la réception d'un paiement
+async function confirmReceipt(fusionId) {
+  if (!confirm("Confirmez-vous avoir reçu les fonds sur votre compte ?")) return;
+
+  try {
+    const res = await fetch('/api/fusion/confirm-receipt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ fusionId })
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadActiveFusions();
+  } catch (err) {
+    alert("Erreur lors de la confirmation.");
+  }
+}
+
+// Charger la progression des cycles (+4%/24h)
+async function loadProgression() {
+  try {
+    const res = await fetch('/api/fusion/my-fusions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const container = document.getElementById('progressionList');
+    container.innerHTML = '';
+
+    if (!data.fusions || data.fusions.length === 0) {
+      container.innerHTML = '<p>Aucun cycle en progression.</p>';
+      return;
+    }
+
+    data.fusions.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>Cycle de Progression - ${f.progressPercent}%</h3>
+        <div style="background:#ddd; border-radius:10px; height:20px; width:100%; overflow:hidden;">
+          <div style="background:#27ae60; height:100%; width:${f.progressPercent}%;"></div>
+        </div>
+        <p style="margin-top:8px;">Gain Prévu (x2) : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong> dans 25 jours</p>
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Erreur chargement progression", err);
+  }
+}
+
+// Charger l'historique des transactions validées
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/donation/my-history', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const container = document.getElementById('historyList');
+    container.innerHTML = '';
+
+    if (!data.history || data.history.length === 0) {
+      container.innerHTML = '<p>Aucune transaction terminée dans l\'historique.</p>';
+      return;
+    }
+
+    data.history.forEach(h => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const validationDate = h.validatedAt ? new Date(h.validatedAt).toLocaleString('fr-FR') : 'Date non disponible';
+      card.innerHTML = `
+        <h3>📜 Don/Paiement de ${h.amount.toLocaleString()} FCFA</h3>
+        <p>Statut : <span style="color:green; font-weight:bold;">TERMINÉ / VALIDÉ</span></p>
+        <p>Validé le : <strong>${validationDate}</strong></p>
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Erreur historique", err);
+  }
+}
+
+// Charger mes filleuls
+async function loadReferrals() {
+  try {
+    const res = await fetch('/api/dashboard/referrals', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const container = document.getElementById('referralsList');
+    container.innerHTML = '';
+
+    if (!data.referrals || data.referrals.length === 0) {
+      container.innerHTML = '<p>Vous n\'avez aucun filleul directement parrainé pour l\'instant.</p>';
+      return;
+    }
+
+    data.referrals.forEach(ref => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>👤 ${ref.fullName}</h3>
+        <p>WhatsApp : <strong>${ref.whatsapp || 'N/A'}</strong></p>
+        <p>Email : ${ref.email}</p>
+        <p>Inscrit le : ${new Date(ref.createdAt).toLocaleDateString('fr-FR')}</p>
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Erreur parrainage", err);
+  }
+}
+
+// Charger le profil utilisateur
+function loadProfile() {
+  if (!currentUser) return;
+  document.getElementById('profileName').value = currentUser.fullName || '';
+  document.getElementById('profileEmail').value = currentUser.email || '';
+  document.getElementById('profileWhatsapp').value = currentUser.whatsapp || '';
+  document.getElementById('profileOrange').value = currentUser.paymentMethods?.orange || '';
+  document.getElementById('profileWave').value = currentUser.paymentMethods?.wave || '';
+  document.getElementById('profileMoov').value = currentUser.paymentMethods?.moov || '';
+  document.getElementById('profileMtn').value = currentUser.paymentMethods?.mtn || '';
+  document.getElementById('profileUsdt').value = currentUser.paymentMethods?.usdtAddress || '';
 }
 
 function logout() {
-  localStorage.removeItem('tk');
-  location.href = '/login';
+  localStorage.removeItem('token');
+  window.location.href = '/login.html';
 }
 
-loadDash();
+// Démarrer au chargement
+initDashboard();
