@@ -1,196 +1,212 @@
 const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Fusion = require('../models/Fusion');
-const auth = require('../middleware/auth');
-const adminAuth = require('../middleware/adminAuth');
-const { runFusion } = require('../utils/fusionEngine');
-const router = express.Router();
+const { runFusionCycle } = require('../utils/fusionEngine');
 
-router.use(auth, adminAuth);
-
-// 📊 1. Statistiques globales
-router.get('/stats', async (req, res) => {
+// 1. Obtenir les statistiques globales
+router.get('/stats', authMiddleware, adminAuth('see_stats'), async (req, res) => {
   try {
-    if (!req.hasPermission('see_stats')) {
-      return res.status(403).json({ error: 'Permission refusée : Voir les statistiques' });
-    }
-
     const totalUsers = await User.countDocuments();
-    const totalDonations = await Donation.countDocuments();
-    const pendingDonations = await Donation.countDocuments({ status: 'pending' });
-    const activeFusions = await Fusion.countDocuments({ status: 'active', receiptConfirmed: true });
-    const pendingFusions = await Fusion.countDocuments({ receiptConfirmed: false });
-    const completedFusions = await Fusion.countDocuments({ status: 'completed' });
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const blockedUsers = await User.countDocuments({ isActive: false });
 
-    const donationsList = await Donation.find();
-    const totalVolume = donationsList.reduce((acc, d) => acc + d.amount, 0);
+    const totalDonations = await Donation.find({ status: 'COMPLETED' });
+    const totalVolume = totalDonations.reduce((acc, d) => acc + d.amount, 0);
+
+    const pendingDonations = await Donation.countDocuments({ status: 'PENDING' });
+    const activeFusions = await Fusion.countDocuments({ status: 'MATCHED' });
+    const completedFusions = await Fusion.countDocuments({ status: 'COMPLETED' });
 
     res.json({
-      totalUsers,
-      totalDonations,
-      pendingDonations,
-      activeFusions,
-      pendingFusions,
-      completedFusions,
-      totalVolume,
-      isMainFounder: req.isMainFounder,
-      permissions: req.userPermissions
+      success: true,
+      stats: {
+        totalUsers,
+        activeUsers,
+        blockedUsers,
+        totalVolume,
+        pendingDonations,
+        activeFusions,
+        completedFusions
+      }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur serveur stats.' });
   }
 });
 
-// ⚡ 2. Lancer la fusion automatique manuellement
-router.post('/trigger-fusion', async (req, res) => {
+// 2. Obtenir la liste complète des membres
+router.get('/members', authMiddleware, adminAuth('see_members'), async (req, res) => {
   try {
-    if (!req.hasPermission('trigger_fusion')) {
-      return res.status(403).json({ error: 'Permission refusée : Lancer la fusion manuelle' });
-    }
-    await runFusion();
-    res.json({ message: 'Fusion automatique exécutée avec succès !' });
+    const members = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json({ success: true, members });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des membres.' });
   }
 });
 
-// 🚀 3. Accélérer la progression (% de gain)
-router.post('/accelerate-progress', async (req, res) => {
+// 3. Déclencher la fusion manuelle
+router.post('/trigger-fusion', authMiddleware, adminAuth('trigger_fusion'), async (req, res) => {
   try {
-    const { boostPercent } = req.body;
-    const boost = parseFloat(boostPercent) || 10;
+    const result = await runFusionCycle();
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors du déclenchement de la fusion.' });
+  }
+});
 
-    if (boost >= 100) {
-      if (!req.hasPermission('instant_100')) {
-        return res.status(403).json({ error: 'Permission refusée : Valider à 100% instantanément' });
+// 4. Accélérer la progression d'un cycle
+router.post('/fusions/:fusionId/accelerate', authMiddleware, adminAuth('accelerate_progress'), async (req, res) => {
+  try {
+    const { percent } = req.body;
+    const fusion = await Fusion.findById(req.body.fusionId || req.params.fusionId);
+    if (!fusion) return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
+
+    if (percent === 100) {
+      if (!req.user.permissions.includes('instant_100') && req.user.role !== 'founder') {
+        return res.status(403).json({ success: false, message: 'Permission non accordée pour le 100% instantané.' });
       }
+      fusion.progressPercent = 100;
     } else {
-      if (!req.hasPermission('accelerate_progress')) {
-        return res.status(403).json({ error: 'Permission refusée : Accélérer les gains' });
-      }
+      fusion.progressPercent = Math.min(100, fusion.progressPercent + (percent || 10));
     }
 
-    const activeFusions = await Fusion.find({ status: 'active', receiptConfirmed: true });
-    for (const f of activeFusions) {
-      f.progress = Math.min(100, (f.progress || 0) + boost);
-      if (f.progress >= 100) {
-        f.status = 'completed';
-        f.endDate = new Date();
-      }
-      await f.save();
-    }
-
-    res.json({ message: `Progression accélérée de +${boost}% pour les cycles actifs !` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ⏸️ 4. Pause ou Redémarrage d'un cycle de progression
-router.post('/toggle-cycle-pause', async (req, res) => {
-  try {
-    const { fusionId, action } = req.body; // action: 'pause' ou 'resume'
-
-    if (action === 'pause' && !req.hasPermission('pause_cycle')) {
-      return res.status(403).json({ error: 'Permission refusée : Pause de progression' });
-    }
-    if (action === 'resume' && !req.hasPermission('resume_cycle')) {
-      return res.status(403).json({ error: 'Permission refusée : Redémarrer la progression' });
-    }
-
-    const fusion = await Fusion.findById(fusionId);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-
-    fusion.isPaused = (action === 'pause');
     await fusion.save();
-
-    res.json({ message: `Cycle ${action === 'pause' ? 'mis en pause' : 'redémarré'} avec succès !` });
+    res.json({ success: true, message: `Progression mise à jour à ${fusion.progressPercent}%`, fusion });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de l\'accélération.' });
   }
 });
 
-// ✅ 5. Valider un paiement à la place du receveur
-router.post('/validate-payment-admin', async (req, res) => {
+// 5. Mettre en pause ou reprendre un cycle
+router.put('/fusions/:fusionId/toggle-pause', authMiddleware, async (req, res) => {
   try {
-    if (!req.hasPermission('validate_payment')) {
-      return res.status(403).json({ error: 'Permission refusée : Valider le paiement' });
+    const fusion = await Fusion.findById(req.params.fusionId);
+    if (!fusion) return res.status(404).json({ success: false, message: 'Cycle introuvable.' });
+
+    if (fusion.isPaused) {
+      if (!req.user.permissions.includes('resume_cycle') && req.user.role !== 'founder') {
+        return res.status(403).json({ success: false, message: 'Permission refusée pour reprendre le cycle.' });
+      }
+      fusion.isPaused = false;
+    } else {
+      if (!req.user.permissions.includes('pause_cycle') && req.user.role !== 'founder') {
+        return res.status(403).json({ success: false, message: 'Permission refusée pour mettre en pause.' });
+      }
+      fusion.isPaused = true;
     }
 
-    const { fusionId } = req.body;
-    const fusion = await Fusion.findById(fusionId);
-    if (!fusion) return res.status(404).json({ error: 'Fusion introuvable' });
-
-    fusion.receiptConfirmed = true;
-    fusion.paymentConfirmed = true;
-    fusion.status = 'active';
-    fusion.startDate = new Date();
-    fusion.validatedAt = new Date();
-    fusion.progress = 0;
     await fusion.save();
-
-    res.json({ message: 'Transaction validée par l\'administration !' });
+    res.json({ success: true, message: `Cycle ${fusion.isPaused ? 'mis en pause' : 'repris'}.`, fusion });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors du changement de statut du cycle.' });
   }
 });
 
-// 🚫 6. Bloquer / Débloquer un membre
-router.post('/toggle-block-user', async (req, res) => {
+// 6. Bloquer / Débloquer un membre
+router.put('/users/:userId/toggle-block', authMiddleware, adminAuth('toggle_block'), async (req, res) => {
   try {
-    if (!req.hasPermission('toggle_block')) {
-      return res.status(403).json({ error: 'Permission refusée : Bloquer/Débloquer des comptes' });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+
+    if (user.role === 'founder') {
+      return res.status(403).json({ success: false, message: 'Impossible de bloquer le Fondateur.' });
     }
 
-    const { targetUserId } = req.body;
-    const targetUser = await User.findById(targetUserId);
-    if (!targetUser) return res.status(404).json({ error: 'Membre introuvable' });
+    user.isActive = !user.isActive;
+    await user.save();
 
-    targetUser.isActive = !targetUser.isActive;
-    await targetUser.save();
-
-    res.json({ message: `Compte de ${targetUser.fullName} ${targetUser.isActive ? 'débloqué' : 'bloqué'} avec succès.` });
+    res.json({
+      success: true,
+      message: `Compte de ${user.fullName} ${user.isActive ? 'débloqué' : 'bloqué'}.`,
+      isActive: user.isActive
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de la modification du statut.' });
   }
 });
 
-// 🛡️ 7. Enregistrer les Permissions d'un Sous-Fondateur (Fondateur Principal Uniquement)
-router.post('/save-subfounder-permissions', async (req, res) => {
+// 7. Promouvoir un membre en Sous-Fondateur et attribuer les tâches déléguées
+router.post('/users/:userId/promote', authMiddleware, adminAuth('manage_subfounders'), async (req, res) => {
   try {
-    if (!req.hasPermission('manage_subfounders')) {
-      return res.status(403).json({ error: 'Seul le Fondateur Principal peut gérer les permissions des Sous-Fondateurs.' });
+    const { permissions } = req.body;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+    if (user.role === 'founder') {
+      return res.status(400).json({ success: false, message: 'Le compte fondateur principal ne peut pas être modifié.' });
     }
 
-    const { targetUserId, permissions, role } = req.body;
-    const targetUser = await User.findById(targetUserId);
+    user.role = 'sub_founder';
+    user.permissions = Array.isArray(permissions) ? permissions : [];
+    await user.save();
 
-    if (!targetUser) return res.status(404).json({ error: 'Membre introuvable' });
-
-    targetUser.role = role || 'sub_founder';
-    targetUser.permissions = Array.isArray(permissions) ? permissions : [];
-    await targetUser.save();
-
-    res.json({ message: `Permissions de ${targetUser.fullName} mises à jour avec succès !` });
+    res.json({
+      success: true,
+      message: `${user.fullName} a été promu Sous-Fondateur avec ${user.permissions.length} tâche(s) déléguée(s).`,
+      user
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de la promotion du membre.' });
   }
 });
 
-// 👥 8. Liste complète de tous les membres et fusions
-router.get('/users', async (req, res) => {
+// 8. Rétrograder un sous-fondateur en Membre Simple
+router.post('/users/:userId/demote', authMiddleware, adminAuth('manage_subfounders'), async (req, res) => {
   try {
-    if (!req.hasPermission('see_members')) {
-      return res.status(403).json({ error: 'Permission refusée : Voir la liste des membres' });
+    const user = await User.findById(req.params.userId);
+
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+    if (user.role === 'founder') {
+      return res.status(400).json({ success: false, message: 'Impossible de rétrograder le Fondateur.' });
     }
 
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    const fusions = await Fusion.find().populate('payerId receiverId', 'fullName email phone whatsapp').sort({ createdAt: -1 }).limit(20);
+    user.role = 'user';
+    user.permissions = [];
+    await user.save();
 
-    res.json({ users, fusions, isMainFounder: req.isMainFounder, myPermissions: req.userPermissions });
+    res.json({
+      success: true,
+      message: `${user.fullName} a été rétrogradé en Membre Simple.`,
+      user
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur lors de la rétrogradation.' });
+  }
+});
+
+// 9. Validation administrative de paiement pour un membre
+router.post('/users/:userId/validate-donation', authMiddleware, adminAuth('validate_payment'), async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Rechercher les dons PENDING concernant ce membre (soit comme donneur, soit comme receveur)
+    const pendingDonation = await Donation.findOne({
+      $or: [{ donorId: userId }, { receiverId: userId }],
+      status: 'PENDING'
+    });
+
+    if (!pendingDonation) {
+      return res.status(404).json({ success: false, message: 'Aucun don en attente de validation trouvé pour ce membre.' });
+    }
+
+    pendingDonation.status = 'COMPLETED';
+    await pendingDonation.save();
+
+    // Mettre à jour la fusion associée si elle existe
+    const fusion = await Fusion.findOne({ donationIds: pendingDonation._id });
+    if (fusion) {
+      fusion.status = 'COMPLETED';
+      fusion.validatedAt = new Date();
+      await fusion.save();
+    }
+
+    res.json({ success: true, message: `Paiement validé avec succès pour la transaction de ${pendingDonation.amount} FCFA !` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Erreur lors de la validation du paiement.' });
   }
 });
 
