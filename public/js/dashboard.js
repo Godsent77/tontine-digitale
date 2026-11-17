@@ -1,319 +1,552 @@
 const token = localStorage.getItem('token');
-
 if (!token) {
   window.location.href = '/login';
 }
 
 let currentUser = null;
+let myDonations = [];
+let myFusions = [];
+let timer30MinInterval = null;
+let code30SecInterval = null;
 
-async function initDashboard() {
+function getHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  };
+}
+
+function showAlert(message, isError = false) {
+  const alertEl = document.getElementById('dashboardAlert');
+  if (!alertEl) return;
+
+  alertEl.style.display = 'block';
+  alertEl.style.background = isError ? '#fdecea' : '#e8f8f5';
+  alertEl.style.color = isError ? '#c0392b' : '#1e8449';
+  alertEl.style.border = isError ? '1px solid #f5c6cb' : '1px solid #a3e4d7';
+  alertEl.textContent = message;
+
+  setTimeout(() => {
+    alertEl.style.display = 'none';
+  }, 6000);
+}
+
+function switchTab(tabId, btnElement) {
+  document.querySelectorAll('.tab-content').forEach((sec) => {
+    sec.style.display = 'none';
+    sec.classList.remove('active');
+  });
+
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.classList.remove('active');
+  });
+
+  const target = document.getElementById(tabId);
+  if (target) {
+    target.style.display = 'block';
+    target.classList.add('active');
+  }
+
+  if (btnElement) {
+    btnElement.classList.add('active');
+  }
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
+
+function formatChrono(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+}
+
+// 1. Charger le statut et la liste des demandes de dons
+async function loadStatus() {
   try {
-    const res = await fetch('/api/donation/my-status', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (!data.success || !data.user) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+    const res = await fetch('/api/donation/my-status', { headers: getHeaders() });
+    if (res.status === 401) {
+      logout();
       return;
     }
 
-    currentUser = data.user;
-    document.getElementById('userNameDisplay').innerText = currentUser.fullName;
-    document.getElementById('userCodeDisplay').innerText = currentUser.referralCode;
-
-    // Définir le lien de parrainage
-    const referralLink = `${window.location.origin}/register?ref=${currentUser.referralCode}`;
-    const linkInput = document.getElementById('myReferralLink');
-    if (linkInput) linkInput.value = referralLink;
-
-    // Bouton de redirection vers le Backoffice
-    const btnAdmin = document.getElementById('btnAdminNav');
-    if (btnAdmin) {
-      if (currentUser.role === 'founder' || currentUser.role === 'sub_founder') {
-        btnAdmin.style.display = 'inline-block';
-        btnAdmin.innerText = currentUser.role === 'founder' ? '👑 Backoffice' : '⭐ Panel Sous-Fondateur';
-      } else {
-        btnAdmin.style.display = 'none';
-      }
-    }
-
-    fetchUsdtRate();
-    showTab('donations');
-    loadMyDonations();
-  } catch (err) {
-    console.error("Erreur d'initialisation du dashboard:", err);
-  }
-}
-
-function copyReferralLink() {
-  const linkInput = document.getElementById('myReferralLink');
-  linkInput.select();
-  document.execCommand('copy');
-  alert("Lien de parrainage copié dans le presse-papier !");
-}
-
-async function fetchUsdtRate() {
-  try {
-    const res = await fetch('/api/donation/usdt-rate');
     const data = await res.json();
-    if (data.success && data.rate) {
-      document.getElementById('usdtRateDisplay').innerText = `📊 Taux Binance P2P Direct : 1 USDT = ${data.rate} FCFA`;
+    if (!res.ok) return;
+
+    currentUser = data.user;
+    myDonations = data.donations || [];
+
+    const welcomeEl = document.getElementById('userWelcome');
+    if (welcomeEl && currentUser) {
+      welcomeEl.textContent = `👤 ${currentUser.fullName} (${currentUser.referralCode})`;
     }
+
+    const adminBtn = document.getElementById('adminNavBtn');
+    if (adminBtn && currentUser && (currentUser.role === 'founder' || currentUser.role === 'sub_founder')) {
+      adminBtn.style.display = 'inline-block';
+    }
+
+    const dailyEl = document.getElementById('dailyUsedDisplay');
+    if (dailyEl) {
+      dailyEl.textContent = `${Number(data.dailyDonationTotal || 0).toLocaleString('fr-FR')} FCFA`;
+    }
+
+    const refInput = document.getElementById('referralLinkInput');
+    if (refInput && currentUser) {
+      refInput.value = `${window.location.origin}/register?ref=${currentUser.referralCode}`;
+    }
+
+    renderDonations();
+    renderProfile();
   } catch (err) {
-    console.error("Erreur taux USDT", err);
+    console.error('Erreur loadStatus:', err);
   }
 }
 
-function showTab(tabName) {
-  const tabs = ['donations', 'fusions', 'progress', 'history', 'referrals', 'profile'];
-  tabs.forEach(t => {
-    const el = document.getElementById(`tab-${t}`);
-    const btn = document.getElementById(`tabBtn-${t}`);
-    if (el) el.style.display = (t === tabName) ? 'block' : 'none';
-    if (btn) {
-      if (t === tabName) btn.classList.add('active');
-      else btn.classList.remove('active');
-    }
-  });
+// 2. Créer une demande de don (lance le chrono de 30 minutes)
+async function createDonation(amount) {
+  const ok = confirm(
+    `Voulez-vous lancer une demande de don de ${Number(amount).toLocaleString('fr-FR')} FCFA ?\n\n⏱️ Vous aurez 30 minutes chrono pour annuler si vous changez d'avis.`
+  );
+  if (!ok) return;
 
-  if (tabName === 'fusions') loadActiveFusions();
-  if (tabName === 'progress') loadProgression();
-  if (tabName === 'history') loadHistory();
-  if (tabName === 'referrals') loadReferrals();
-  if (tabName === 'profile') loadProfile();
+  try {
+    const res = await fetch('/api/donation/create', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ amount: Number(amount) })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showAlert(data.message || 'Erreur lors de la création du don.', true);
+      return;
+    }
+
+    showAlert(data.message || 'Demande de don créée !');
+    await loadStatus();
+    await loadFusions();
+  } catch (err) {
+    showAlert('Erreur réseau lors de la création de la demande de don.', true);
+  }
+}
+
+// 3. Annuler une demande de don pendant les 30 minutes
+async function cancelDonationRequest(donationId, amount) {
+  const ok = confirm(
+    `Confirmez-vous l'annulation de votre demande de don de ${Number(amount).toLocaleString('fr-FR')} FCFA ?`
+  );
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`/api/donation/cancel/${donationId}`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showAlert(data.message || "Impossible d'annuler cette demande.", true);
+      await loadStatus();
+      return;
+    }
+
+    showAlert(data.message || 'Demande annulée avec succès.');
+    await loadStatus();
+  } catch (err) {
+    showAlert("Erreur réseau lors de l'annulation.", true);
+  }
+}
+
+// 4. Afficher les demandes de dons et leur compte à rebours de 30 minutes
+function renderDonations() {
+  const container = document.getElementById('myDonationsList');
+  if (!container) return;
+
+  if (!myDonations.length) {
+    container.innerHTML = `<p style="color:#777;">Aucune demande de don pour le moment.</p>`;
+    return;
+  }
+
+  const now = Date.now();
+  const thirtyMinMs = 30 * 60 * 1000;
+
+  container.innerHTML = myDonations
+    .map((d) => {
+      const deadlineMs = d.cancelDeadline
+        ? new Date(d.cancelDeadline).getTime()
+        : new Date(d.createdAt).getTime() + thirtyMinMs;
+      const remainingMs = deadlineMs - now;
+      const isPending = d.status === 'pending' || d.status === 'waiting';
+      const canStillCancel = isPending && remainingMs > 0;
+      const barWidth = Math.max(0, Math.min(100, (remainingMs / thirtyMinMs) * 100));
+
+      let statusTag = '';
+      if (isPending) {
+        statusTag = canStillCancel
+          ? `<span style="background:#fef3c7; color:#b45309; padding:4px 10px; border-radius:50px; font-size:0.82rem; font-weight:700;">⏱️ Annulable pendant 30 min</span>`
+          : `<span style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:50px; font-size:0.82rem; font-weight:700;">✅ Pris en compte (En attente de fusion)</span>`;
+      } else if (d.status === 'matched') {
+        statusTag = `<span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:50px; font-size:0.82rem; font-weight:700;">🔄 Fusionné</span>`;
+      } else {
+        statusTag = `<span style="background:#d1fae5; color:#065f46; padding:4px 10px; border-radius:50px; font-size:0.82rem; font-weight:700;">✅ Validé / Actif</span>`;
+      }
+
+      let countdownHtml = '';
+      if (isPending) {
+        if (canStillCancel) {
+          countdownHtml = `
+            <div class="countdown-box" data-deadline="${deadlineMs}" data-id="${d._id}">
+              <div class="countdown-header">
+                <span style="font-weight:700; color:#92400e; font-size:0.9rem;">
+                  ⏳ Compte à rebours avant prise en compte définitive :
+                </span>
+                <span class="countdown-badge js-chrono-text">
+                  ⏱️ ${formatChrono(remainingMs)}
+                </span>
+              </div>
+              <div class="countdown-progress-bg">
+                <div class="countdown-progress-bar js-chrono-bar" style="width:${barWidth}%;"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <small style="color:#78350f;">
+                  Passé ce compte à rebours de 30 minutes, la demande est définitivement prise en compte.
+                </small>
+                <button class="btn-cancel-request" onclick="cancelDonationRequest('${d._id}', ${d.amount})">
+                  ❌ Annuler ma demande
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          countdownHtml = `
+            <div class="validated-request-box">
+              ✅ Les 30 minutes sont écoulées : Votre demande de don est prise en compte et prête pour la fusion.
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div class="item-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <strong style="font-size:1.1rem; color:#2c3e50;">
+              🎁 Don de ${Number(d.amount).toLocaleString('fr-FR')} FCFA
+              <small style="color:#64748b; font-weight:500;">(≈ ${d.usdtAmount || (d.amount / 650).toFixed(2)} USDT)</small>
+            </strong>
+            ${statusTag}
+          </div>
+          <div style="margin-top:6px; font-size:0.9rem; color:#475569;">
+            🎯 Retour x2 : <strong style="color:#27ae60;">${Number(d.amount * 2).toLocaleString('fr-FR')} FCFA</strong>
+            • 📅 Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}
+          </div>
+          ${countdownHtml}
+        </div>
+      `;
+    })
+    .join('');
+
+  startChronoTicker();
+}
+
+// 5. Faire défiler le chronomètre chaque seconde en direct
+function startChronoTicker() {
+  if (timer30MinInterval) clearInterval(timer30MinInterval);
+
+  const thirtyMinMs = 30 * 60 * 1000;
+
+  timer30MinInterval = setInterval(async () => {
+    const boxes = document.querySelectorAll('.countdown-box[data-deadline]');
+    if (!boxes.length) return;
+
+    const now = Date.now();
+    let anyExpired = false;
+
+    boxes.forEach((box) => {
+      const deadline = Number(box.getAttribute('data-deadline'));
+      const remaining = deadline - now;
+      const textEl = box.querySelector('.js-chrono-text');
+      const barEl = box.querySelector('.js-chrono-bar');
+
+      if (remaining <= 0) {
+        anyExpired = true;
+      } else {
+        if (textEl) textEl.textContent = `⏱️ ${formatChrono(remaining)}`;
+        if (barEl) {
+          const pct = Math.max(0, Math.min(100, (remaining / thirtyMinMs) * 100));
+          barEl.style.width = `${pct}%`;
+        }
+      }
+    });
+
+    if (anyExpired) {
+      clearInterval(timer30MinInterval);
+      await loadStatus();
+      await loadFusions();
+    }
+  }, 1000);
+}
+
+// 6. Charger les fusions actives et la progression
+async function loadFusions() {
+  const container = document.getElementById('myFusionsList');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/fusion/my-fusions', { headers: getHeaders() });
+    const data = await res.json();
+    myFusions = Array.isArray(data) ? data : [];
+
+    renderProgress();
+
+    const pendingFusions = myFusions.filter((f) => f.status === 'pending');
+
+    if (!pendingFusions.length) {
+      container.innerHTML = `<p style="color:#777;">Aucune fusion en attente de paiement pour le moment.</p>`;
+      return;
+    }
+
+    const myId = currentUser ? String(currentUser._id) : '';
+
+    container.innerHTML = pendingFusions
+      .map((f) => {
+        const isReceiver = f.receiverId && String(f.receiverId._id || f.receiverId) === myId;
+        const donor = f.donorId || {};
+        const receiver = f.receiverId || {};
+        const pm = receiver.paymentMethods || {};
+
+        return `
+          <div class="item-card" style="border-left-color:${isReceiver ? '#27ae60' : '#2980b9'};">
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <strong>
+                ${isReceiver ? '📥 Don à Recevoir' : '📤 Don à Envoyer'} : ${Number(f.amount).toLocaleString('fr-FR')} FCFA
+              </strong>
+              <span style="background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:50px; font-size:0.8rem; font-weight:700;">
+                En attente de confirmation
+              </span>
+            </div>
+
+            <div style="margin-top:10px; background:#f8fafc; padding:12px; border-radius:8px; font-size:0.9rem;">
+              <div><strong>📤 Donneur :</strong> ${donor.fullName || 'Membre'} (WhatsApp : ${donor.whatsapp || donor.phone || 'N/A'})</div>
+              <div style="margin-top:4px;"><strong>📥 Receveur :</strong> ${receiver.fullName || 'Membre'} (WhatsApp : ${receiver.whatsapp || receiver.phone || 'N/A'})</div>
+              <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">
+                <strong>💳 Moyens de paiement du Receveur :</strong><br/>
+                🟠 Orange : <strong>${pm.orangeMoney || 'N/A'}</strong> |
+                🔵 Wave : <strong>${pm.wave || 'N/A'}</strong> |
+                🟡 MTN : <strong>${pm.mtnMoney || 'N/A'}</strong> |
+                🟣 Moov : <strong>${pm.moovMoney || 'N/A'}</strong><br/>
+                💎 USDT BEP20 : <strong>${pm.usdtBep20 || 'N/A'}</strong>
+              </div>
+            </div>
+
+            ${
+              isReceiver
+                ? `<div style="margin-top:12px; text-align:right;">
+                    <button class="btn btn-primary" onclick="confirmFusionReceipt('${f._id}')">
+                      ✅ Confirmer la réception du don
+                    </button>
+                  </div>`
+                : ''
+            }
+          </div>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    container.innerHTML = `<p style="color:#c0392b;">Erreur lors du chargement des fusions.</p>`;
+  }
+}
+
+async function confirmFusionReceipt(fusionId) {
+  if (!confirm('Confirmez-vous avoir bien reçu ce paiement ?')) return;
+
+  try {
+    const res = await fetch('/api/fusion/confirm-receipt', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ fusionId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showAlert(data.message || 'Erreur lors de la validation.', true);
+      return;
+    }
+
+    showAlert('✅ Paiement confirmé et déplacé dans votre Historique !');
+    await loadStatus();
+    await loadFusions();
+    await loadHistory();
+  } catch (err) {
+    showAlert('Erreur réseau.', true);
+  }
+}
+
+function renderProgress() {
+  const container = document.getElementById('myProgressList');
+  if (!container) return;
+
+  const activeList = myFusions.filter((f) => f.status !== 'pending');
+  if (!activeList.length) {
+    container.innerHTML = `<p style="color:#777;">Aucun cycle actif en progression pour le moment.</p>`;
+    return;
+  }
+
+  container.innerHTML = activeList
+    .map((f) => {
+      const pct = Math.min(100, f.progressPercent || 0);
+      return `
+        <div class="item-card">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <strong>Cycle de ${Number(f.amount).toLocaleString('fr-FR')} FCFA → Retour : ${Number(f.amount * 2).toLocaleString('fr-FR')} FCFA</strong>
+            <strong style="color:#27ae60;">${pct}% / 100%</strong>
+          </div>
+          <div style="width:100%; height:14px; background:#e2e8f0; border-radius:50px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #27ae60, #2ecc71);"></div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+// 7. Charger l'historique
+async function loadHistory() {
+  const container = document.getElementById('myHistoryList');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/donation/my-history', { headers: getHeaders() });
+    const list = await res.json();
+
+    if (!res.ok || !Array.isArray(list) || !list.length) {
+      container.innerHTML = `<p style="color:#777;">Aucune transaction validée dans l'historique.</p>`;
+      return;
+    }
+
+    const myId = currentUser ? String(currentUser._id) : '';
+
+    container.innerHTML = list
+      .map((h) => {
+        const isReceiver = h.receiverId && String(h.receiverId._id || h.receiverId) === myId;
+        const dateStr = h.validatedAt
+          ? new Date(h.validatedAt).toLocaleString('fr-FR')
+          : new Date(h.createdAt).toLocaleString('fr-FR');
+
+        return `
+          <div class="item-card">
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
+              <strong>${isReceiver ? '📥 Don Reçu' : '📤 Don Envoyé'} : ${Number(h.amount).toLocaleString('fr-FR')} FCFA</strong>
+              <span style="color:#15803d; font-weight:700;">✅ Validé le ${dateStr}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    container.innerHTML = `<p style="color:#c0392b;">Erreur chargement historique.</p>`;
+  }
+}
+
+// 8. Parrainage : Copier le lien et Générer le code 30 secondes
+function copyReferralLink() {
+  const input = document.getElementById('referralLinkInput');
+  if (!input || !input.value) return;
+  navigator.clipboard.writeText(input.value);
+  showAlert('📋 Lien de parrainage copié !');
 }
 
 async function generateAccessCode() {
   try {
     const res = await fetch('/api/auth/generate-code', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: getHeaders()
     });
     const data = await res.json();
-
-    if (data.success) {
-      document.getElementById('generatedCodeDisplay').innerText = data.code;
-      let timeLeft = 30;
-      const timerEl = document.getElementById('codeTimer');
-      timerEl.innerText = `Code valide pendant ${timeLeft}s`;
-
-      const interval = setInterval(() => {
-        timeLeft--;
-        if (timeLeft <= 0) {
-          clearInterval(interval);
-          timerEl.innerText = "Code expiré. Régénérez un nouveau code.";
-          document.getElementById('generatedCodeDisplay').innerText = "------";
-        } else {
-          timerEl.innerText = `Code valide pendant ${timeLeft}s`;
-        }
-      }, 1000);
-    } else {
-      alert(data.message);
+    if (!res.ok) {
+      showAlert(data.message || 'Erreur génération code.', true);
+      return;
     }
+
+    const box = document.getElementById('accessCodeBox');
+    const val = document.getElementById('accessCodeValue');
+    const timer = document.getElementById('accessCodeTimer');
+
+    box.style.display = 'block';
+    val.textContent = data.accessCode || data.code;
+
+    let sec = 30;
+    timer.textContent = sec;
+
+    if (code30SecInterval) clearInterval(code30SecInterval);
+    code30SecInterval = setInterval(() => {
+      sec--;
+      timer.textContent = Math.max(0, sec);
+      if (sec <= 0) {
+        clearInterval(code30SecInterval);
+        val.textContent = 'EXPIRÉ';
+      }
+    }, 1000);
   } catch (err) {
-    alert("Erreur génération du code.");
+    showAlert('Erreur réseau.', true);
   }
-}
-
-async function submitDonation(amount) {
-  if (!confirm(`Confirmez-vous la création de votre demande de don de ${amount.toLocaleString()} FCFA ?`)) return;
-
-  try {
-    const res = await fetch('/api/donation/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ amount })
-    });
-    const data = await res.json();
-    alert(data.message);
-    loadMyDonations();
-  } catch (err) {
-    alert("Erreur création du don.");
-  }
-}
-
-async function loadMyDonations() {
-  try {
-    const res = await fetch('/api/donation/my-donations', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const container = document.getElementById('myDonationsList');
-    container.innerHTML = '';
-
-    if (!data.donations || data.donations.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Aucune demande de don active actuellement.</p>';
-      return;
-    }
-
-    data.donations.forEach(d => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#f8f9fa; padding:12px 15px; border-radius:6px; margin-bottom:10px; border-left:4px solid #27ae60;';
-      card.innerHTML = `
-        <h4 style="margin:0; color:#2c3e50;">Montant : ${d.amount.toLocaleString()} FCFA</h4>
-        <p style="margin:5px 0 0 0; font-size:13px; color:#7f8c8d;">Statut : <strong style="color:#e67e22;">${d.status}</strong> | Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}</p>
-      `;
-      container.appendChild(card);
-    });
-  } catch (err) { console.error(err); }
-}
-
-async function loadActiveFusions() {
-  try {
-    const res = await fetch('/api/fusion/my-fusions', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const container = document.getElementById('activeFusionsList');
-    container.innerHTML = '';
-
-    if (!data.fusions || data.fusions.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Aucune fusion active pour le moment.</p>';
-      return;
-    }
-
-    data.fusions.forEach(f => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#ffffff; padding:18px; border-radius:8px; margin-bottom:15px; border:1px solid #e1e8ed; border-left:5px solid #3498db;';
-      card.innerHTML = `
-        <h4 style="margin:0 0 8px 0; color:#2c3e50;">Fusion #${f._id.substr(-6)} - Montant Prévu : ${(f.expectedAmount || 0).toLocaleString()} FCFA</h4>
-        <p style="margin:0 0 10px 0;">Progression : <strong>${f.progressPercent}%</strong> ${f.isPaused ? '<span style="color:#e74c3c; font-weight:bold;">(En Pause)</span>' : ''}</p>
-        ${f.donorId && f.donorId._id === currentUser._id ? `
-          <div style="background:#ebf5fb; padding:12px; border-radius:6px; font-size:13px; color:#1b4f72;">
-            <strong style="font-size:14px; display:block; margin-bottom:5px;">Coordonnées du Receveur :</strong>
-            Nom : <strong>${f.receiverId.fullName}</strong><br>
-            WhatsApp : <strong>${f.receiverId.whatsapp || 'N/A'}</strong><br>
-            Orange Money : ${f.receiverId.paymentMethods?.orange || 'N/A'} | Wave : ${f.receiverId.paymentMethods?.wave || 'N/A'}<br>
-            Moov Money : ${f.receiverId.paymentMethods?.moov || 'N/A'} | MTN Money : ${f.receiverId.paymentMethods?.mtn || 'N/A'}<br>
-            USDT BEP20 : ${f.receiverId.paymentMethods?.usdtAddress || 'N/A'}
-          </div>
-        ` : ''}
-        ${f.receiverId && f.receiverId._id === currentUser._id ? `
-          <button onclick="confirmReceipt('${f._id}')" class="btn btn-success" style="margin-top:10px;">✅ Confirmer Réception du Paiement</button>
-        ` : ''}
-      `;
-      container.appendChild(card);
-    });
-  } catch (err) { console.error(err); }
-}
-
-async function confirmReceipt(fusionId) {
-  if (!confirm("Confirmez-vous avoir reçu les fonds sur votre compte ?")) return;
-  try {
-    const res = await fetch('/api/fusion/confirm-receipt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ fusionId })
-    });
-    const data = await res.json();
-    alert(data.message);
-    loadActiveFusions();
-  } catch (err) { alert("Erreur confirmation."); }
-}
-
-async function loadProgression() {
-  try {
-    const res = await fetch('/api/fusion/my-fusions', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const container = document.getElementById('progressionList');
-    container.innerHTML = '';
-
-    if (!data.fusions || data.fusions.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Aucun cycle actuellement en progression.</p>';
-      return;
-    }
-
-    data.fusions.forEach(f => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#ffffff; padding:18px; border-radius:8px; margin-bottom:15px; border:1px solid #e1e8ed;';
-      card.innerHTML = `
-        <h4 style="margin:0 0 10px 0; color:#2c3e50;">Cycle de Progression - ${f.progressPercent}%</h4>
-        <div style="background:#ecf0f1; border-radius:10px; height:20px; width:100%; overflow:hidden;">
-          <div style="background:#27ae60; height:100%; width:${f.progressPercent}%;"></div>
-        </div>
-        <p style="font-size:13px; margin:10px 0 0 0; color:#34495e;">Gain Prévu (x2) : <strong>${(f.expectedAmount || 0).toLocaleString()} FCFA</strong> dans 25 jours (+4%/24h)</p>
-      `;
-      container.appendChild(card);
-    });
-  } catch (err) { console.error(err); }
-}
-
-async function loadHistory() {
-  try {
-    const res = await fetch('/api/donation/my-history', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const container = document.getElementById('historyList');
-    container.innerHTML = '';
-
-    if (!data.history || data.history.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Aucune transaction dans votre historique.</p>';
-      return;
-    }
-
-    data.history.forEach(h => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#f8f9fa; padding:14px; border-radius:6px; margin-bottom:10px; border-left:5px solid #27ae60;';
-      const vDate = h.validatedAt ? new Date(h.validatedAt).toLocaleString('fr-FR') : 'Non renseignée';
-      card.innerHTML = `
-        <h4 style="margin:0; color:#27ae60;">📜 Transaction de ${h.amount.toLocaleString()} FCFA - VALIDÉE</h4>
-        <p style="margin:5px 0 0 0; font-size:13px; color:#7f8c8d;">Validée le : <strong>${vDate}</strong></p>
-      `;
-      container.appendChild(card);
-    });
-  } catch (err) { console.error(err); }
 }
 
 async function loadReferrals() {
-  try {
-    const res = await fetch('/api/dashboard/referrals', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const container = document.getElementById('referralsList');
-    container.innerHTML = '';
+  const container = document.getElementById('myReferralsList');
+  if (!container) return;
 
-    if (!data.referrals || data.referrals.length === 0) {
-      container.innerHTML = '<p style="color:#7f8c8d;">Vous n\'avez aucun filleul directement inscrit pour l\'instant.</p>';
+  try {
+    const res = await fetch('/api/dashboard/referrals', { headers: getHeaders() });
+    const data = await res.json();
+    const referrals = Array.isArray(data) ? data : data.referrals || [];
+
+    if (!referrals.length) {
+      container.innerHTML = `<p style="color:#777;">Aucun filleul inscrit pour le moment.</p>`;
       return;
     }
 
-    data.referrals.forEach(ref => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#ffffff; padding:15px; border-radius:8px; margin-bottom:12px; border:1px solid #e1e8ed;';
-      card.innerHTML = `
-        <h4 style="margin:0; color:#2c3e50;">👤 ${ref.fullName}</h4>
-        <p style="margin:6px 0 0 0; font-size:13px; color:#34495e;">WhatsApp : <strong style="color:#27ae60;">${ref.whatsapp || 'N/A'}</strong> | Email : ${ref.email}</p>
-        <p style="margin:3px 0 0 0; font-size:12px; color:#95a5a6;">Inscrit le : ${new Date(ref.createdAt).toLocaleDateString('fr-FR')}</p>
-      `;
-      container.appendChild(card);
-    });
-  } catch (err) { console.error(err); }
+    container.innerHTML = referrals
+      .map(
+        (r) => `
+        <div class="item-card">
+          <strong>👤 ${r.fullName}</strong> (${r.referralCode || ''})<br/>
+          <small style="color:#475569;">📧 ${r.email} | 💬 WhatsApp : ${r.whatsapp || r.phone || 'N/A'}</small>
+        </div>
+      `
+      )
+      .join('');
+  } catch (err) {
+    container.innerHTML = `<p style="color:#777;">Aucun filleul trouvé.</p>`;
+  }
 }
 
-function loadProfile() {
-  if (!currentUser) return;
-  document.getElementById('profileName').value = currentUser.fullName || '';
-  document.getElementById('profileEmail').value = currentUser.email || '';
-  document.getElementById('profileWhatsapp').value = currentUser.whatsapp || '';
-  document.getElementById('profileOrange').value = currentUser.paymentMethods?.orange || '';
-  document.getElementById('profileWave').value = currentUser.paymentMethods?.wave || '';
-  document.getElementById('profileMoov').value = currentUser.paymentMethods?.moov || '';
-  document.getElementById('profileMtn').value = currentUser.paymentMethods?.mtn || '';
-  document.getElementById('profileUsdt').value = currentUser.paymentMethods?.usdtAddress || '';
+function renderProfile() {
+  const container = document.getElementById('profileDetails');
+  if (!container || !currentUser) return;
+
+  const pm = currentUser.paymentMethods || {};
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+      <div style="background:#f8fafc; padding:12px; border-radius:8px;"><strong>Nom :</strong><br/>${currentUser.fullName}</div>
+      <div style="background:#f8fafc; padding:12px; border-radius:8px;"><strong>Email :</strong><br/>${currentUser.email}</div>
+      <div style="background:#f8fafc; padding:12px; border-radius:8px;"><strong>WhatsApp :</strong><br/>${currentUser.whatsapp || currentUser.phone || 'N/A'}</div>
+      <div style="background:#f8fafc; padding:12px; border-radius:8px;"><strong>Code Parrain :</strong><br/>${currentUser.referralCode}</div>
+      <div style="background:#fff3e0; padding:12px; border-radius:8px;"><strong>🟠 Orange Money :</strong><br/>${pm.orangeMoney || 'Non renseigné'}</div>
+      <div style="background:#e1f5fe; padding:12px; border-radius:8px;"><strong>🔵 Wave :</strong><br/>${pm.wave || 'Non renseigné'}</div>
+      <div style="background:#fffde7; padding:12px; border-radius:8px;"><strong>🟡 MTN :</strong><br/>${pm.mtnMoney || 'Non renseigné'}</div>
+      <div style="background:#e8eaf6; padding:12px; border-radius:8px;"><strong>🟣 Moov :</strong><br/>${pm.moovMoney || 'Non renseigné'}</div>
+      <div style="background:#e8f8f5; padding:12px; border-radius:8px; grid-column:1 / -1;"><strong>💎 USDT BEP20 :</strong><br/>${pm.usdtBep20 || 'Non renseigné'}</div>
+    </div>
+  `;
 }
 
-function logout() {
-  localStorage.removeItem('token');
-  window.location.href = '/login';
-}
-
-initDashboard();
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadStatus();
+  await loadFusions();
+  await loadHistory();
+  await loadReferrals();
+});

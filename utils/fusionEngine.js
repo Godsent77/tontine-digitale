@@ -1,89 +1,111 @@
+const User = require('../models/User');
 const Donation = require('../models/Donation');
 const Fusion = require('../models/Fusion');
-const User = require('../models/User');
 
 async function runFusion() {
   try {
-    // ETAPE 1 : Tous les fondateurs recoivent chacun 2 dons au depart
-    var founders = await User.find({ sponsorCode: 'AUCUN' }).sort({ createdAt: 1 });
-    var founderIds = founders.map(function(f) { return f._id; });
+    const now = new Date();
 
-    for (var f = 0; f < founders.length; f++) {
-      var founder = founders[f];
-      var received = await Fusion.countDocuments({
-        receiverId: founder._id,
-        receiverDonationId: null
-      });
+    // Ne sélectionne que les demandes de dons dont le compte à rebours de 30 minutes est écoulé
+    const pendingDonations = await Donation.find({
+      status: { $in: ['pending', 'waiting'] },
+      $or: [
+        { cancelDeadline: { $lte: now } },
+        { cancelDeadline: { $exists: false } },
+        { cancelDeadline: null }
+      ]
+    }).sort({ createdAt: 1 });
 
-      if (received < 2) {
-        var remaining = 2 - received;
-        var pendingForFounder = await Donation.find({
-          status: 'pending',
-          userId: { $nin: founderIds }
-        }).sort({ createdAt: 1 }).limit(remaining);
+    if (!pendingDonations.length) {
+      return { createdFusions: 0 };
+    }
 
-        for (var i = 0; i < pendingForFounder.length; i++) {
-          var d = pendingForFounder[i];
-          var fusion = new Fusion({
-            payerId: d.userId,
+    let createdFusions = 0;
+
+    // 1. Récupérer tous les Fondateurs actifs (qui reçoivent leurs 2 premiers dons sans donner avant)
+    const founders = await User.find({
+      isActive: { $ne: false },
+      $or: [{ sponsorCode: 'AUCUN' }, { role: 'founder' }]
+    }).sort({ createdAt: 1 });
+
+    for (const donation of pendingDonations) {
+      const freshDonation = await Donation.findById(donation._id);
+      if (!freshDonation || !['pending', 'waiting'].includes(freshDonation.status)) {
+        continue;
+      }
+
+      let matched = false;
+
+      // ÉTAPE 1 : Attribuer les 2 premiers dons à chaque Fondateur
+      for (const founder of founders) {
+        if (String(founder._id) === String(freshDonation.userId)) continue;
+
+        const founderReceivedCount = await Fusion.countDocuments({
+          receiverId: founder._id
+        });
+
+        if (founderReceivedCount < 2) {
+          await Fusion.create({
+            donationId: freshDonation._id,
+            donorId: freshDonation.userId,
             receiverId: founder._id,
-            payerDonationId: d._id,
-            receiverDonationId: null,
-            amount: d.amount,
-            status: 'active'
+            amount: freshDonation.amount,
+            usdtAmount: freshDonation.usdtAmount || Number((freshDonation.amount / 650).toFixed(2)),
+            status: 'pending',
+            progressPercent: 0,
+            isPaused: false
           });
-          await fusion.save();
 
-          d.status = 'fused';
-          d.fusionId = fusion._id;
-          await d.save();
+          freshDonation.status = 'matched';
+          await freshDonation.save();
+          createdFusions++;
+          matched = true;
+          break;
+        }
+      }
 
-          console.log('Fusion fondateur (' + founder.fullName + '): recoit ' + d.amount + ' F de ' + d.userId);
+      if (matched) continue;
+
+      // ÉTAPE 2 : Chercher un membre dont la fusion/cycle est arrivé à 100% (mature) pour recevoir x2 (2 dons)
+      const maturedFusions = await Fusion.find({
+        status: { $in: ['confirmed', 'completed', 'validated'] },
+        progressPercent: { $gte: 100 },
+        amount: freshDonation.amount,
+        donorId: { $ne: freshDonation.userId }
+      }).sort({ validatedAt: 1, createdAt: 1 });
+
+      for (const matured of maturedFusions) {
+        const alreadyAssignedCount = await Fusion.countDocuments({
+          receiverId: matured.donorId,
+          amount: freshDonation.amount,
+          createdAt: { $gte: matured.createdAt }
+        });
+
+        if (alreadyAssignedCount < 2) {
+          await Fusion.create({
+            donationId: freshDonation._id,
+            donorId: freshDonation.userId,
+            receiverId: matured.donorId,
+            amount: freshDonation.amount,
+            usdtAmount: freshDonation.usdtAmount || Number((freshDonation.amount / 650).toFixed(2)),
+            status: 'pending',
+            progressPercent: 0,
+            isPaused: false
+          });
+
+          freshDonation.status = 'matched';
+          await freshDonation.save();
+          createdFusions++;
+          matched = true;
+          break;
         }
       }
     }
 
-    // ETAPE 2 : Fusion avec les membres arrives a 100% (matures) qui doivent recevoir x2
-    var completedFusions = await Fusion.find({ status: 'completed' }).sort({ endDate: 1 });
-
-    for (var c = 0; c < completedFusions.length; c++) {
-      var cf = completedFusions[c];
-      // Le payeur de cette fusion a fini ses 25 jours : il doit recevoir 2 dons du meme montant
-      var alreadyMatched = await Fusion.countDocuments({
-        receiverId: cf.payerId,
-        receiverDonationId: cf.payerDonationId
-      });
-
-      if (alreadyMatched < 2) {
-        var need = 2 - alreadyMatched;
-        var newDons = await Donation.find({
-          status: 'pending',
-          amount: cf.amount,
-          userId: { $ne: cf.payerId }
-        }).sort({ createdAt: 1 }).limit(need);
-
-        for (var k = 0; k < newDons.length; k++) {
-          var nd = newDons[k];
-          var matFusion = new Fusion({
-            payerId: nd.userId,
-            receiverId: cf.payerId,
-            payerDonationId: nd._id,
-            receiverDonationId: cf.payerDonationId,
-            amount: nd.amount,
-            status: 'active'
-          });
-          await matFusion.save();
-
-          nd.status = 'fused';
-          nd.fusionId = matFusion._id;
-          await nd.save();
-
-          console.log('Fusion maturite: ' + nd.userId + ' paie ' + nd.amount + ' F a ' + cf.payerId);
-        }
-      }
-    }
+    return { createdFusions };
   } catch (err) {
-    console.error('Erreur fusion:', err.message);
+    console.error('Erreur dans runFusion:', err.message);
+    return { createdFusions: 0, error: err.message };
   }
 }
 

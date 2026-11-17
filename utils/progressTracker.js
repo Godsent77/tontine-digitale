@@ -1,31 +1,48 @@
 const Fusion = require('../models/Fusion');
+const Donation = require('../models/Donation');
+const { runFusion } = require('./fusionEngine');
 
-// Tracker de progression (+4% par 24h)
-function startProgressTracker() {
-  console.log(' Tracker de progression automatique (+4%/24h) démarré.');
+async function checkProgressAndFusions() {
+  try {
+    const now = new Date();
 
-  // Mettre à jour la progression toutes les 10 minutes
-  setInterval(async () => {
-    try {
-      // Ne mettre à jour que les fusions actives (MATCHED) et non mises en pause
-      const activeFusions = await Fusion.find({ status: 'MATCHED', isPaused: false });
-      const now = Date.now();
+    // 1. Avancer de +4% par 24h les cycles validés qui ne sont pas en pause
+    const activeFusions = await Fusion.find({
+      status: { $in: ['confirmed', 'completed', 'validated'] },
+      progressPercent: { $lt: 100 },
+      isPaused: { $ne: true }
+    });
 
-      for (const fusion of activeFusions) {
-        const lastUpdate = fusion.updatedAt ? new Date(fusion.updatedAt).getTime() : new Date(fusion.createdAt).getTime();
-        const hoursElapsed = (now - lastUpdate) / (1000 * 60 * 60);
+    for (const fusion of activeFusions) {
+      const refDate = fusion.lastProgressAt || fusion.validatedAt || fusion.createdAt;
+      const hoursElapsed = (now - new Date(refDate)) / (1000 * 60 * 60);
 
-        // Progression de 4% par 24h (~0.166% par heure)
-        if (hoursElapsed >= 0.25) { // Mise à jour toutes les 15 minutes minimum
-          const addedProgress = (4 / 24) * hoursElapsed;
-          fusion.progressPercent = Math.min(100, Math.round((fusion.progressPercent + addedProgress) * 100) / 100);
-          await fusion.save();
+      if (hoursElapsed >= 24) {
+        const daysPassed = Math.floor(hoursElapsed / 24);
+        const addPercent = daysPassed * 4;
+        fusion.progressPercent = Math.min(100, (fusion.progressPercent || 0) + addPercent);
+        fusion.lastProgressAt = now;
+        await fusion.save();
+
+        if (fusion.donationId) {
+          await Donation.findByIdAndUpdate(fusion.donationId, {
+            $set: { progress: fusion.progressPercent }
+          });
         }
       }
-    } catch (err) {
-      console.error("Erreur dans le tracker de progression:", err);
     }
-  }, 10 * 60 * 1000); // Exécution toutes les 10 minutes
+
+    // 2. Déclencher la prise en compte automatique des dons ayant dépassé les 30 minutes
+    await runFusion();
+  } catch (err) {
+    console.error('Erreur dans progressTracker:', err.message);
+  }
+}
+
+function startProgressTracker() {
+  console.log('⏱️ Tracker de progression (+4%/24h) et validation des 30 min actif.');
+  checkProgressAndFusions();
+  setInterval(checkProgressAndFusions, 30 * 1000);
 }
 
 module.exports = { startProgressTracker };
