@@ -12,6 +12,7 @@ const fusionSchema = new mongoose.Schema({
   paymentType: { type: String, default: 'direct' },
   paymentViaSponsor: { type: String, default: '' },
   forwardConfirmed: { type: Boolean, default: false },
+  isPaused: { type: Boolean, default: false }, // Indique si le cycle est en pause
   startDate: { type: Date, default: null },
   validatedAt: { type: Date, default: null },
   endDate: { type: Date, default: null },

@@ -8,12 +8,12 @@ function startTracker() {
 
 async function updateProgress() {
   try {
-    const activeFusions = await Fusion.find({ status: 'active', startDate: { $ne: null } });
+    // Exclut les cycles en pause (isPaused: true)
+    const activeFusions = await Fusion.find({ status: 'active', startDate: { $ne: null }, isPaused: { $ne: true } });
     const now = new Date();
 
     for (const f of activeFusions) {
       const elapsed = now - f.startDate;
-      const totalMs = 25 * 24 * 3600 * 1000;
       const hoursElapsed = elapsed / (3600 * 1000);
       const progress = Math.min(100, (hoursElapsed / 24) * 4);
 

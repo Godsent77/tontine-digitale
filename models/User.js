@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   phone: { type: String, default: '' },
   whatsapp: { type: String, default: '' },
+  role: { type: String, enum: ['member', 'sub_founder', 'founder'], default: 'member' },
+  permissions: { type: [String], default: [] }, // Liste des permissions déléguées
   referralCode: { type: String, unique: true },
   sponsorCode: { type: String, default: '' },
   sponsorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -18,7 +20,7 @@ const userSchema = new mongoose.Schema({
   },
   dailyDonationTotal: { type: Number, default: 0 },
   dailyDonationDate: { type: String, default: '' },
-  isActive: { type: Boolean, default: true },
+  isActive: { type: Boolean, default: true }, // Pour bloquer / débloquer un compte
   createdAt: { type: Date, default: Date.now }
 });
 

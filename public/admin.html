@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Backoffice Fondateur - Tontine Digitale</title>
+<title>Backoffice Administration - Tontine Digitale</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
 .admin-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #38bdf8; }
@@ -12,13 +12,23 @@
 .stat-box h4 { font-size: 0.85em; color: #94a3b8; margin-bottom: 5px; }
 .stat-box .num { font-size: 1.8em; font-weight: 700; color: #38bdf8; }
 .action-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+.badge-role-founder { background: #d97706; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.8em; }
+.badge-role-sub { background: #0284c7; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.8em; }
+.badge-role-member { background: #475569; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.8em; }
+
+/* MODAL PERMISSIONS */
+.modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:9999; }
+.modal-box { background: #1e293b; border-radius: 12px; padding: 25px; width: 90%; max-width: 550px; max-height: 90vh; overflow-y: auto; border: 1px solid #38bdf8; }
+.perm-check { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #334155; }
+.perm-check input { width: 18px; height: 18px; cursor: pointer; }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="header">
-    <h1>👑 Backoffice Fondateur</h1>
+    <h1>👑 Backoffice Administration</h1>
     <div class="header-right">
+      <span id="roleBadge"></span>
       <a href="/dashboard" class="btn btn-sm btn-secondary">🏠 Mon Dashboard</a>
       <button onclick="logout()" class="btn btn-sm btn-danger">Déconnexion</button>
     </div>
@@ -26,9 +36,9 @@
 
   <main class="main">
 
-    <!-- CARTES STATISTIQUES -->
-    <div class="admin-card">
-      <h3>📊 Statistiques Globales de la Tontine</h3>
+    <!-- STATISTIQUES GLOBALES -->
+    <div class="admin-card" id="cardStats">
+      <h3>📊 Statistiques Globales</h3>
       <div class="stats-grid">
         <div class="stat-box"><h4>Membres Inscrits</h4><div class="num" id="stUsers">-</div></div>
         <div class="stat-box"><h4>Volume Circulé</h4><div class="num" id="stVolume">- F</div></div>
@@ -39,28 +49,64 @@
     </div>
 
     <!-- ACTIONS DE CONTRÔLE -->
-    <div class="admin-card" style="border-left-color: #16a34a;">
+    <div class="admin-card" id="cardActions" style="border-left-color: #16a34a;">
       <h3>⚡ Actions de Gestion & Fusions</h3>
-      <p>Utilisez ces boutons pour déclencher les mariages automatiques ou accélérer les cycles de gains.</p>
+      <p>Déclenchez les mariages automatiques ou accélérez les cycles de gains.</p>
       
       <div class="action-btns">
-        <button onclick="triggerFusion()" class="btn btn-success btn-lg">⚡ Lancer la Fusion Automatique Maintenant</button>
-        <button onclick="accelerate(10)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +10%</button>
-        <button onclick="accelerate(25)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +25%</button>
-        <button onclick="accelerate(100)" class="btn btn-info btn-lg">🎉 Passer tous les cycles actifs à 100%</button>
+        <button id="btnTriggerFusion" onclick="triggerFusion()" class="btn btn-success btn-lg">⚡ Lancer la Fusion Automatique Maintenant</button>
+        <button id="btnAcc10" onclick="accelerate(10)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +10%</button>
+        <button id="btnAcc25" onclick="accelerate(25)" class="btn btn-warning btn-lg">🚀 Accélérer tous les cycles de +25%</button>
+        <button id="btnAcc100" onclick="accelerate(100)" class="btn btn-info btn-lg">🎉 Passer tous les cycles à 100%</button>
       </div>
     </div>
 
-    <!-- LISTE DES MEMBRES -->
-    <div class="admin-card" style="border-left-color: #7c3aed;">
-      <h3>👥 Liste des Membres & Contacts</h3>
+    <!-- LISTE DES MEMBRES & PERMISSIONS -->
+    <div class="admin-card" id="cardMembers" style="border-left-color: #7c3aed;">
+      <h3>👥 Liste des Membres & Gestion des Permissions</h3>
       <div id="usersList"><p>Chargement des membres...</p></div>
+    </div>
+
+    <!-- FUSIONS & CYCLES EN COURS -->
+    <div class="admin-card" id="cardFusions" style="border-left-color: #d97706;">
+      <h3>🔄 Fusions & Cycles (Pause / Validation Administrateur)</h3>
+      <div id="fusionsAdminList"><p>Chargement des fusions...</p></div>
     </div>
 
   </main>
 </div>
 
+<!-- FENÊTRE POPUP (MODAL) COCHE DES PERMISSIONS -->
+<div id="permModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 style="color:#38bdf8; margin-bottom:10px;">🛡️ Tâches à Délégué à <span id="modalUserName"></span></h3>
+    <p style="font-size:0.9em; color:#94a3b8; margin-bottom:15px;">Cochez les actions que ce Sous-Fondateur sera autorisé à effectuer :</p>
+    
+    <input type="hidden" id="modalUserId">
+
+    <div class="perm-check"><input type="checkbox" id="p_see_stats"><label for="p_see_stats">📊 Voir les statistiques globales (membres, volumes)</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_see_members"><label for="p_see_members">👥 Voir la liste des membres & leurs contacts</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_trigger_fusion"><label for="p_trigger_fusion">⚡ Lancer la Fusion Automatique manuellement</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_accelerate_progress"><label for="p_accelerate_progress">🚀 Accélérer les gains (+10%, +25%)</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_instant_100"><label for="p_instant_100">🎉 Passer la progression à 100% instantanément</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_manage_subfounders"><label for="p_manage_subfounders">🛡️ Nommer ou retirer des Sous-Fondateurs</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_toggle_block"><label for="p_toggle_block">🚫 Bloquer et débloquer des comptes</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_pause_cycle"><label for="p_pause_cycle">⏸️ Pause de progression de cycle</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_resume_cycle"><label for="p_resume_cycle">▶️ Redémarrer progression de cycle</label></div>
+    <div class="perm-check"><input type="checkbox" id="p_validate_payment"><label for="p_validate_payment">✅ Valider paiement à la place du receveur</label></div>
+
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button onclick="savePermissions('sub_founder')" class="btn btn-primary btn-block">💾 Enregistrer comme Sous-Fondateur</button>
+      <button onclick="savePermissions('member')" class="btn btn-danger btn-block">❌ Rétrograder en Membre Simple</button>
+    </div>
+    <button onclick="closeModal()" class="btn btn-secondary btn-block mt-1">Annuler</button>
+  </div>
+</div>
+
 <script>
+let IS_MAIN_FOUNDER = false;
+let MY_PERMISSIONS = [];
+
 async function api(u, o) {
   o = o || {};
   o.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('tk') }, o.headers || {});
@@ -81,16 +127,41 @@ function toast(m, t) {
 
 function fmt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
 
+function hasP(p) {
+  return IS_MAIN_FOUNDER || MY_PERMISSIONS.includes(p);
+}
+
 async function loadAdminStats() {
   try {
     var d = await api('/api/admin/stats');
+    IS_MAIN_FOUNDER = d.isMainFounder;
+    MY_PERMISSIONS = d.permissions || [];
+
     document.getElementById('stUsers').textContent = d.totalUsers;
     document.getElementById('stVolume').textContent = fmt(d.totalVolume) + ' F';
     document.getElementById('stPendingDon').textContent = d.pendingDonations;
     document.getElementById('stActiveFus').textContent = d.activeFusions;
     document.getElementById('stCompletedFus').textContent = d.completedFusions;
+
+    var rb = document.getElementById('roleBadge');
+    if (IS_MAIN_FOUNDER) {
+      rb.innerHTML = '<span class="badge-role-founder">👑 Fondateur Principal</span>';
+    } else {
+      rb.innerHTML = '<span class="badge-role-sub">🛡️ Sous-Fondateur</span>';
+    }
+
+    // Gestion de l'affichage dynamique des boutons selon permissions
+    if (!hasP('trigger_fusion')) document.getElementById('btnTriggerFusion').style.display = 'none';
+    if (!hasP('accelerate_progress')) {
+      document.getElementById('btnAcc10').style.display = 'none';
+      document.getElementById('btnAcc25').style.display = 'none';
+    }
+    if (!hasP('instant_100')) document.getElementById('btnAcc100').style.display = 'none';
+
   } catch (e) {
-    toast(e.message, 'error');
+    if (e.message.includes('Permission refusée')) {
+      document.getElementById('cardStats').style.display = 'none';
+    } else { toast(e.message, 'error'); }
   }
 }
 
@@ -100,6 +171,7 @@ async function triggerFusion() {
     var d = await api('/api/admin/trigger-fusion', { method: 'POST' });
     toast(d.message);
     loadAdminStats();
+    loadAllData();
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -109,31 +181,154 @@ async function accelerate(boost) {
     var d = await api('/api/admin/accelerate-progress', { method: 'POST', body: JSON.stringify({ boostPercent: boost }) });
     toast(d.message);
     loadAdminStats();
+    loadAllData();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function loadAllUsers() {
+async function toggleBlockUser(uid) {
+  if (!confirm('Voulez-vous changer le statut d\'accès de ce membre ?')) return;
+  try {
+    var d = await api('/api/admin/toggle-block-user', { method: 'POST', body: JSON.stringify({ targetUserId: uid }) });
+    toast(d.message);
+    loadAllData();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleCyclePause(fid, act) {
+  try {
+    var d = await api('/api/admin/toggle-cycle-pause', { method: 'POST', body: JSON.stringify({ fusionId: fid, action: act }) });
+    toast(d.message);
+    loadAllData();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function validatePaymentAdmin(fid) {
+  if (!confirm('Confirmer la validation du paiement à la place du receveur ?')) return;
+  try {
+    var d = await api('/api/admin/validate-payment-admin', { method: 'POST', body: JSON.stringify({ fusionId: fid }) });
+    toast(d.message);
+    loadAllData();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// GESTION DU MODAL PERMISSIONS
+const ALL_PERMS = ['see_stats', 'see_members', 'trigger_fusion', 'accelerate_progress', 'instant_100', 'manage_subfounders', 'toggle_block', 'pause_cycle', 'resume_cycle', 'validate_payment'];
+
+function openPermModal(uid, uname, existingPerms) {
+  document.getElementById('modalUserId').value = uid;
+  document.getElementById('modalUserName').textContent = uname;
+
+  existingPerms = existingPerms || [];
+  ALL_PERMS.forEach(p => {
+    var el = document.getElementById('p_' + p);
+    if (el) el.checked = existingPerms.includes(p);
+  });
+
+  document.getElementById('permModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('permModal').classList.add('hidden');
+}
+
+async function savePermissions(targetRole) {
+  var uid = document.getElementById('modalUserId').value;
+  var selectedPerms = [];
+
+  ALL_PERMS.forEach(p => {
+    var el = document.getElementById('p_' + p);
+    if (el && el.checked) selectedPerms.push(p);
+  });
+
+  try {
+    var d = await api('/api/admin/save-subfounder-permissions', {
+      method: 'POST',
+      body: JSON.stringify({ targetUserId: uid, permissions: selectedPerms, role: targetRole })
+    });
+    toast(d.message);
+    closeModal();
+    loadAllData();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadAllData() {
   try {
     var d = await api('/api/admin/users');
     var c = document.getElementById('usersList');
-    if (!d.users || d.users.length === 0) { c.innerHTML = '<div class="empty">Aucun membre</div>'; return; }
-    var h = '';
-    d.users.forEach(function(u) {
-      var dStr = new Date(u.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      h += '<div class="fusion-card" style="margin-bottom:8px;">';
-      h += '<strong>👤 ' + u.fullName + '</strong> (' + (u.sponsorCode === 'AUCUN' ? '👑 Fondateur' : 'Membre') + ')<br>';
-      h += '📧 Email: ' + u.email + ' | 💬 WhatsApp: ' + (u.whatsapp || u.phone || '-') + '<br>';
-      h += '<small style="color:#94a3b8">Code Parrain: ' + u.referralCode + ' | Inscrit le: ' + dStr + '</small>';
-      h += '</div>';
-    });
-    c.innerHTML = h;
-  } catch (e) { toast(e.message, 'error'); }
+    var fc = document.getElementById('fusionsAdminList');
+
+    // 1. MEMBRES
+    if (!d.users || d.users.length === 0) { c.innerHTML = '<div class="empty">Aucun membre</div>'; }
+    else {
+      var h = '';
+      d.users.forEach(function(u) {
+        var dStr = new Date(u.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        var rBadge = u.role === 'founder' || u.sponsorCode === 'AUCUN' ? '<span class="badge-role-founder">👑 Fondateur</span>' : (u.role === 'sub_founder' ? '<span class="badge-role-sub">🛡️ Sous-Fondateur</span>' : '<span class="badge-role-member">Membre</span>');
+        var statusBadge = u.isActive ? '<span style="color:#16a34a; font-weight:bold;">🟢 Actif</span>' : '<span style="color:#dc2626; font-weight:bold;">🔴 Bloqué</span>';
+
+        h += '<div class="fusion-card" style="margin-bottom:12px;">';
+        h += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">';
+        h += '<div><strong>👤 ' + u.fullName + '</strong> ' + rBadge + ' (' + statusBadge + ')</div>';
+        
+        h += '<div style="display:flex; gap:5px;">';
+        if (hasP('toggle_block') && u.sponsorCode !== 'AUCUN') {
+          h += '<button onclick="toggleBlockUser(\'' + u._id + '\')" class="btn btn-sm ' + (u.isActive ? 'btn-danger' : 'btn-success') + '">' + (u.isActive ? '🚫 Bloquer' : '🟢 Débloquer') + '</button>';
+        }
+        if (IS_MAIN_FOUNDER && u.sponsorCode !== 'AUCUN') {
+          var permsJson = JSON.stringify(u.permissions || []).replace(/"/g, '&quot;');
+          h += '<button onclick="openPermModal(\'' + u._id + '\', \'' + u.fullName + '\', ' + permsJson + ')" class="btn btn-sm btn-info">🛡️ Tâches & Permissions</button>';
+        }
+        h += '</div></div>';
+
+        h += '<div style="margin-top:6px;">💬 WhatsApp: ' + (u.whatsapp || u.phone || '-') + ' | 📧 Email: ' + u.email + '</div>';
+        h += '<small style="color:#94a3b8">Code Parrain: ' + u.referralCode + ' | Inscrit le: ' + dStr + '</small>';
+        h += '</div>';
+      });
+      c.innerHTML = h;
+    }
+
+    // 2. FUSIONS
+    if (!d.fusions || d.fusions.length === 0) { fc.innerHTML = '<div class="empty">Aucune fusion</div>'; }
+    else {
+      var fh = '';
+      d.fusions.forEach(function(f) {
+        var payer = f.payerId ? f.payerId.fullName : 'Inconnu';
+        var receiver = f.receiverId ? f.receiverId.fullName : 'Inconnu';
+        
+        fh += '<div class="fusion-card" style="margin-bottom:10px;">';
+        fh += '<div style="display:flex; justify-content:space-between; align-items:center;">';
+        fh += '<strong>💸 ' + payer + ' ➔ 💰 ' + receiver + ' (' + fmt(f.amount) + ' F)</strong>';
+        fh += '<span>Progression: ' + (f.progress || 0) + '% ' + (f.isPaused ? '⏸️ (En Pause)' : '') + '</span>';
+        fh += '</div>';
+
+        fh += '<div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">';
+        if (!f.receiptConfirmed && hasP('validate_payment')) {
+          fh += '<button onclick="validatePaymentAdmin(\'' + f._id + '\')" class="btn btn-sm btn-success">✅ Valider Paiement Administrateur</button>';
+        }
+        if (f.status === 'active') {
+          if (f.isPaused && hasP('resume_cycle')) {
+            fh += '<button onclick="toggleCyclePause(\'' + f._id + '\', \'resume\')" class="btn btn-sm btn-info">▶️ Redémarrer Cycle</button>';
+          } else if (!f.isPaused && hasP('pause_cycle')) {
+            fh += '<button onclick="toggleCyclePause(\'' + f._id + '\', \'pause\')" class="btn btn-sm btn-warning">⏸️ Pause Cycle</button>';
+          }
+        }
+        fh += '</div></div>';
+      });
+      fc.innerHTML = fh;
+    }
+
+  } catch (e) {
+    if (e.message.includes('Permission refusée')) {
+      document.getElementById('cardMembers').style.display = 'none';
+      document.getElementById('cardFusions').style.display = 'none';
+    } else { toast(e.message, 'error'); }
+  }
 }
 
 function logout() { localStorage.removeItem('tk'); location.href = '/login'; }
 
 loadAdminStats();
-loadAllUsers();
+loadAllData();
 </script>
 </body>
 </html>
