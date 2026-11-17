@@ -6,72 +6,134 @@
   <title>Backoffice Administration - Tontine Digitale</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0; }
-    header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .admin-container { max-width: 1200px; margin: 20px auto; padding: 15px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
-    .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
-    .stat-card h4 { margin: 0 0 10px 0; color: #666; font-size: 13px; }
-    .stat-card p { margin: 0; font-size: 22px; font-weight: bold; color: #27ae60; }
-    .actions-panel { background: white; padding: 15px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .table-responsive { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: 12px 15px; border-bottom: 1px solid #eee; }
-    th { background: #f8f9fa; color: #333; }
-    .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-    .badge-founder { background: #e74c3c; color: white; }
-    .badge-subfounder { background: #f39c12; color: white; }
-    .badge-user { background: #3498db; color: white; }
+    .admin-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .stat-box {
+      background-color: #ffffff;
+      padding: 18px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      text-align: center;
+      border: 1px solid #e1e8ed;
+    }
+    .stat-box h4 {
+      margin: 0 0 8px 0;
+      color: #7f8c8d;
+      font-size: 13px;
+    }
+    .stat-box p {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+      color: #27ae60;
+    }
+    .table-wrapper {
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e1e8ed;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #ecf0f1;
+    }
+    th {
+      background-color: #f8f9fa;
+      color: #2c3e50;
+      font-weight: bold;
+    }
+    .badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .badge-founder { background-color: #e74c3c; color: white; }
+    .badge-subfounder { background-color: #f39c12; color: white; }
+    .badge-user { background-color: #3498db; color: white; }
     
-    .btn-group { display: flex; gap: 5px; justify-content: center; }
-    .btn-act { padding: 6px 10px; font-size: 12px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; color: white; }
-    .btn-val { background: #27ae60; }
-    .btn-blk { background: #e67e22; }
-    .btn-ublk { background: #2980b9; }
-    .btn-prm { background: #8e44ad; }
+    .btn-action-group {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+    .btn-act {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-val { background-color: #27ae60; }
+    .btn-blk { background-color: #e67e22; }
+    .btn-ublk { background-color: #2980b9; }
+    .btn-prm { background-color: #8e44ad; }
 
-    /* Modal Permissions */
-    .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:9999; }
-    .modal-content { background:white; padding:25px; border-radius:10px; max-width:500px; width:90%; max-height:85vh; overflow-y:auto; }
-    .perm-item { display:flex; align-items:center; gap:10px; background:#f8f9fa; padding:8px 12px; border-radius:6px; margin-bottom:8px; cursor:pointer; }
+    .perm-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .perm-check input {
+      width: 18px;
+      height: 18px;
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <h2 id="backofficeTitle" style="margin: 0; font-size: 20px;">👑 Backoffice Administrateur</h2>
+    <h2 id="backofficeTitle">👑 Backoffice Administrateur</h2>
     <div>
-      <a href="/dashboard" style="color: white; text-decoration: none; margin-right: 15px;">⬅ Tableau de bord</a>
-      <button onclick="logout()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Déconnexion</button>
+      <a href="/dashboard" style="color: white; text-decoration: none; margin-right: 15px; font-weight: bold;">⬅ Tableau de bord</a>
+      <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
     </div>
   </header>
 
-  <div class="admin-container">
+  <div class="container">
 
     <!-- Bandeau Sous-Fondateur -->
-    <div id="subFounderBanner" style="display:none; background:#8e44ad; color:white; padding:12px 20px; border-radius:8px; margin-bottom:20px;">
+    <div id="subFounderBanner" style="display: none; background-color: #8e44ad; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
       <h3 style="margin:0;" id="subFounderName">⭐ Panel Sous-Fondateur</h3>
-      <span style="font-size:13px;" id="subFounderPermsCount">Permissions attribuées</span>
+      <span style="font-size: 13px;" id="subFounderPermsCount">Permissions attribuées actives</span>
     </div>
 
-    <!-- Statistiques -->
-    <div id="statsSection" class="stats-grid">
-      <div class="stat-card"><h4>Membres Totaux</h4><p id="statUsers">0</p></div>
-      <div class="stat-card"><h4>Volume Total</h4><p id="statVolume">0 FCFA</p></div>
-      <div class="stat-card"><h4>Dons en Attente</h4><p id="statPending">0</p></div>
-      <div class="stat-card"><h4>Fusions Actives</h4><p id="statFusions">0</p></div>
+    <!-- Statistiques Globales -->
+    <div id="statsSection" class="admin-card-grid">
+      <div class="stat-box"><h4>Membres Totaux</h4><p id="statUsers">0</p></div>
+      <div class="stat-box"><h4>Volume Total</h4><p id="statVolume">0 FCFA</p></div>
+      <div class="stat-box"><h4>Dons en Attente</h4><p id="statPending">0</p></div>
+      <div class="stat-box"><h4>Fusions Actives</h4><p id="statFusions">0</p></div>
     </div>
 
-    <!-- Action Fusion -->
-    <div id="fusionActionPanel" class="actions-panel">
-      <h3 style="margin:0;">⚙️ Algorithme de Fusion</h3>
-      <button onclick="triggerFusion()" style="background: #27ae60; color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold;">⚡ Déclencher la Fusion Manuelle</button>
+    <!-- Fusion Manuelle -->
+    <div id="fusionActionPanel" class="card" style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; border: none; padding: 0;">⚙️ Algorithme & Actions Système</h3>
+      <button onclick="triggerFusion()" class="btn btn-success">⚡ Déclencher la Fusion Manuelle</button>
     </div>
 
-    <!-- Tableau des membres -->
+    <!-- Tableau Unifié des Membres -->
     <div id="membersSection">
-      <h3>👥 Liste des Membres & Actions Directes</h3>
-      <div class="table-responsive">
+      <h3>👥 Liste des Membres & Actions Administrateur</h3>
+      <div class="table-wrapper">
         <table>
           <thead>
             <tr>
@@ -92,29 +154,30 @@
 
   </div>
 
-  <!-- Modale Promotion -->
+  <!-- Modale Promotion & Tâches Déléguées (Cachée par défaut) -->
   <div id="permModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-top:0; color:#8e44ad;">⭐ Promouvoir & Déléguer des Tâches</h3>
-      <p id="modalUserTarget" style="font-weight:bold; color:#2c3e50;"></p>
+      <h3 style="margin-top: 0; color: #8e44ad; border: none;">⭐ Promouvoir & Déléguer des Tâches</h3>
+      <p id="modalUserTarget" style="font-weight: bold; color: #2c3e50; font-size: 15px; margin-bottom: 15px;"></p>
+      
       <form id="permForm">
-        <div style="margin: 15px 0;">
-          <label class="perm-item"><input type="checkbox" name="perm" value="see_stats"> 📊 Voir les statistiques globales</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="see_members"> 👥 Voir la liste des membres</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="trigger_fusion"> ⚡ Déclencher la fusion manuelle</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="accelerate_progress"> 🚀 Accélérer la progression (+10%, +25%)</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="instant_100"> ⏩ Progression instantanée à 100%</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="manage_subfounders"> ⭐ Gérer / Promouvoir des sous-fondateurs</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="toggle_block"> 🔒 Bloquer / Débloquer des membres</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="pause_cycle"> ⏸️ Mettre en pause un cycle</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="resume_cycle"> ▶️ Reprendre un cycle en pause</label>
-          <label class="perm-item"><input type="checkbox" name="perm" value="validate_payment"> ✅ Valider des paiements manuellement</label>
+        <div style="margin-bottom: 20px;">
+          <label class="perm-check"><input type="checkbox" name="perm" value="see_stats"> 📊 Voir les statistiques globales</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="see_members"> 👥 Voir la liste des membres</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="trigger_fusion"> ⚡ Déclencher la fusion manuelle</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="accelerate_progress"> 🚀 Accélérer la progression (+10%, +25%)</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="instant_100"> ⏩ Progression instantanée à 100%</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="manage_subfounders"> ⭐ Gérer / Promouvoir des sous-fondateurs</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="toggle_block"> 🔒 Bloquer / Débloquer des membres</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="pause_cycle"> ⏸️ Mettre en pause un cycle</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="resume_cycle"> ▶️ Reprendre un cycle en pause</label>
+          <label class="perm-check"><input type="checkbox" name="perm" value="validate_payment"> ✅ Valider des paiements manuellement</label>
         </div>
 
-        <div style="display:flex; justify-content:space-between;">
-          <button type="button" onclick="closePromoteModal()" style="background:#95a5a6; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Annuler</button>
-          <button type="button" id="btnDemote" onclick="demoteCurrentMember()" style="display:none; background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Rétrograder</button>
-          <button type="submit" style="background:#8e44ad; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer; font-weight:bold;">Enregistrer</button>
+        <div style="display: flex; justify-content: space-between; gap: 10px;">
+          <button type="button" onclick="closePromoteModal()" class="btn" style="background:#95a5a6; color:white;">Annuler</button>
+          <button type="button" id="btnDemote" onclick="demoteCurrentMember()" class="btn btn-danger" style="display:none;">Rétrograder</button>
+          <button type="submit" class="btn btn-purple">Enregistrer & Promouvoir</button>
         </div>
       </form>
     </div>
@@ -139,7 +202,7 @@
         const data = await res.json();
         
         if (!data.success) {
-          alert("Accès réservé.");
+          alert("Accès réservé aux administrateurs.");
           window.location.href = '/dashboard';
           return;
         }
@@ -150,7 +213,7 @@
           document.getElementById('backofficeTitle').innerText = `⭐ Panel Sous-Fondateur`;
           document.getElementById('subFounderBanner').style.display = 'block';
           document.getElementById('subFounderName').innerText = `⭐ Panel Sous-Fondateur - ${currentUser.fullName}`;
-          document.getElementById('subFounderPermsCount').innerText = `${currentUser.permissions ? currentUser.permissions.length : 0} permission(s) active(s)`;
+          document.getElementById('subFounderPermsCount').innerText = `${currentUser.permissions ? currentUser.permissions.length : 0} tâche(s) déléguée(s) accordée(s)`;
         }
 
         if (hasPerm('see_stats')) fetchStats();
@@ -212,18 +275,18 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${m.fullName}</strong></td>
-          <td>${m.email}<br><small style="color:#888;">Code: ${m.referralCode}</small></td>
+          <td>${m.email}<br><small style="color:#7f8c8d;">Code: ${m.referralCode}</small></td>
           <td>${m.whatsapp || 'N/A'}</td>
           <td><span class="badge ${badge}">${roleN}</span></td>
           <td><strong style="color:${m.isActive ? '#27ae60' : '#e74c3c'}">${m.isActive ? 'Actif' : 'Bloqué'}</strong></td>
-          <td style="text-align: center;"><div class="btn-group">${btns || 'Consulter'}</div></td>
+          <td style="text-align: center;"><div class="btn-action-group">${btns || 'Consultation'}</div></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
     async function adminValidateUser(userId) {
-      if (!confirm("Valider le don de ce membre ?")) return;
+      if (!confirm("Valider le paiement de ce membre ?")) return;
       try {
         const res = await fetch(`/api/admin/users/${userId}/validate-donation`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
@@ -274,7 +337,7 @@
     });
 
     async function demoteCurrentMember() {
-      if (!currentTargetUserId || !confirm("Rétrograder en membre simple ?")) return;
+      if (!currentTargetUserId || !confirm("Voulez-vous vraiment rétrograder ce sous-fondateur en membre simple ?")) return;
       try {
         const res = await fetch(`/api/admin/users/${currentTargetUserId}/demote`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
@@ -288,7 +351,7 @@
       try {
         const res = await fetch('/api/admin/trigger-fusion', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
         const data = await res.json();
-        alert(data.result ? data.result.message : "Fusion déclenchée.");
+        alert(data.result ? data.result.message : "Fusion exécutée.");
         if (hasPerm('see_stats')) fetchStats();
       } catch (e) { alert("Erreur fusion."); }
     }
