@@ -1,33 +1,40 @@
 const User = require('../models/User');
 
-module.exports = async function(req, res, next) {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
+// La fonction principale DOIT être synchrone pour renvoyer directement le middleware à Express
+module.exports = function(requiredPermission) {
+  return async (req, res, next) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'Non autorisé, jeton manquant.' });
+      }
 
-    if (!user.isActive) {
-      return res.status(403).json({ error: 'Votre compte a été bloqué par l\'administration.' });
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Utilisateur introuvable.' });
+      }
+
+      // 1. Les comptes Fondateurs principaux ont TOUS les accès
+      if (user.role === 'founder') {
+        req.user = user;
+        return next();
+      }
+
+      // 2. Les Sous-Fondateurs vérifient si la permission spécifique leur est attribuée
+      if (user.role === 'sub_founder') {
+        if (requiredPermission && (!user.permissions || !user.permissions.includes(requiredPermission))) {
+          return res.status(403).json({
+            success: false,
+            message: `Permission non accordée : la tâche '${requiredPermission}' ne vous a pas été déléguée.`
+          });
+        }
+        req.user = user;
+        return next();
+      }
+
+      // 3. Les membres simples sont refusés
+      return res.status(403).json({ success: false, message: 'Accès réservé aux administrateurs.' });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Erreur lors de la vérification des permissions d\'administration.' });
     }
-
-    const isFounder = user.role === 'founder' || user.sponsorCode === 'AUCUN' || (user.referralCode && user.referralCode.startsWith('FONDATEUR'));
-    const isSubFounder = user.role === 'sub_founder';
-
-    if (!isFounder && !isSubFounder) {
-      return res.status(403).json({ error: 'Accès réservé aux Fondateurs et Sous-Fondateurs' });
-    }
-
-    req.adminUser = user;
-    req.isMainFounder = isFounder;
-    req.userPermissions = user.permissions || [];
-
-    // Helper pour vérifier si l'utilisateur a la permission requise
-    req.hasPermission = function(perm) {
-      if (req.isMainFounder) return true; // Le Fondateur Principal a TOUS les pouvoirs
-      return req.userPermissions.includes(perm);
-    };
-
-    next();
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  };
 };
