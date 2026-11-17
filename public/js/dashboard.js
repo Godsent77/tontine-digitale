@@ -5,7 +5,6 @@ if (!token) {
 
 let currentUser = null;
 
-// Initialiser le tableau de bord
 async function initDashboard() {
   try {
     const res = await fetch('/api/donation/my-status', {
@@ -23,7 +22,6 @@ async function initDashboard() {
     document.getElementById('userNameDisplay').innerText = currentUser.fullName;
     document.getElementById('userCodeDisplay').innerText = currentUser.referralCode;
 
-    // Affichage conditionnel du bouton Admin / Backoffice
     const btnAdmin = document.getElementById('btnAdminNav');
     if (btnAdmin) {
       if (currentUser.role === 'founder' || currentUser.role === 'sub_founder') {
@@ -34,10 +32,7 @@ async function initDashboard() {
       }
     }
 
-    // Charger les informations USDT live
     fetchUsdtRate();
-
-    // Afficher la section dons par défaut
     showTab('donations');
     loadMyDonations();
   } catch (err) {
@@ -45,7 +40,6 @@ async function initDashboard() {
   }
 }
 
-// Récupérer le taux USDT live Binance
 async function fetchUsdtRate() {
   try {
     const res = await fetch('/api/donation/usdt-rate');
@@ -58,7 +52,6 @@ async function fetchUsdtRate() {
   }
 }
 
-// Navigation par Onglets
 function showTab(tabName) {
   const tabs = ['donations', 'fusions', 'progress', 'history', 'referrals', 'profile'];
   tabs.forEach(t => {
@@ -73,7 +66,6 @@ function showTab(tabName) {
   if (tabName === 'profile') loadProfile();
 }
 
-// Générer un code d'accès de 30 secondes pour un filleul
 async function generateAccessCode() {
   try {
     const res = await fetch('/api/auth/generate-code', {
@@ -106,7 +98,6 @@ async function generateAccessCode() {
   }
 }
 
-// Faire un don
 async function submitDonation(amount) {
   if (!confirm(`Confirmez-vous la demande de don de ${amount.toLocaleString()} FCFA ?`)) return;
 
@@ -127,7 +118,6 @@ async function submitDonation(amount) {
   }
 }
 
-// Charger mes dons actifs
 async function loadMyDonations() {
   try {
     const res = await fetch('/api/donation/my-donations', {
@@ -148,7 +138,6 @@ async function loadMyDonations() {
       card.innerHTML = `
         <h3>Montant : ${d.amount.toLocaleString()} FCFA</h3>
         <p>Statut : <strong>${d.status}</strong></p>
-
         <p>Date : ${new Date(d.createdAt).toLocaleString('fr-FR')}</p>
       `;
       container.appendChild(card);
@@ -158,7 +147,6 @@ async function loadMyDonations() {
   }
 }
 
-// Charger les fusions actives
 async function loadActiveFusions() {
   try {
     const res = await fetch('/api/fusion/my-fusions', {
@@ -204,7 +192,6 @@ async function loadActiveFusions() {
   }
 }
 
-// Confirmer la réception d'un paiement
 async function confirmReceipt(fusionId) {
   if (!confirm("Confirmez-vous avoir reçu les fonds sur votre compte ?")) return;
 
@@ -225,7 +212,6 @@ async function confirmReceipt(fusionId) {
   }
 }
 
-// Charger la progression des cycles (+4%/24h)
 async function loadProgression() {
   try {
     const res = await fetch('/api/fusion/my-fusions', {
@@ -257,7 +243,6 @@ async function loadProgression() {
   }
 }
 
-// Charger l'historique des transactions validées
 async function loadHistory() {
   try {
     const res = await fetch('/api/donation/my-history', {
@@ -288,7 +273,6 @@ async function loadHistory() {
   }
 }
 
-// Charger mes filleuls
 async function loadReferrals() {
   try {
     const res = await fetch('/api/dashboard/referrals', {
@@ -319,7 +303,6 @@ async function loadReferrals() {
   }
 }
 
-// Charger le profil utilisateur
 function loadProfile() {
   if (!currentUser) return;
   document.getElementById('profileName').value = currentUser.fullName || '';
@@ -337,5 +320,4 @@ function logout() {
   window.location.href = '/login.html';
 }
 
-// Démarrer au chargement
 initDashboard();
