@@ -1,36 +1,31 @@
 const Fusion = require('../models/Fusion');
 
-function startTracker() {
-  console.log('Tracker de progression demarre (verification toutes les heures)');
-  setInterval(updateProgress, 3600000);
-  updateProgress();
-}
+// Tracker de progression (+4% par 24h)
+function startProgressTracker() {
+  console.log(' Tracker de progression automatique (+4%/24h) démarré.');
 
-async function updateProgress() {
-  try {
-    // Exclut les cycles en pause (isPaused: true)
-    const activeFusions = await Fusion.find({ status: 'active', startDate: { $ne: null }, isPaused: { $ne: true } });
-    const now = new Date();
+  // Mettre à jour la progression toutes les 10 minutes
+  setInterval(async () => {
+    try {
+      // Ne mettre à jour que les fusions actives (MATCHED) et non mises en pause
+      const activeFusions = await Fusion.find({ status: 'MATCHED', isPaused: false });
+      const now = Date.now();
 
-    for (const f of activeFusions) {
-      const elapsed = now - f.startDate;
-      const hoursElapsed = elapsed / (3600 * 1000);
-      const progress = Math.min(100, (hoursElapsed / 24) * 4);
+      for (const fusion of activeFusions) {
+        const lastUpdate = fusion.updatedAt ? new Date(fusion.updatedAt).getTime() : new Date(fusion.createdAt).getTime();
+        const hoursElapsed = (now - lastUpdate) / (1000 * 60 * 60);
 
-      f.progress = Math.round(progress * 100) / 100;
-
-      if (progress >= 100) {
-        f.status = 'completed';
-        f.progress = 100;
-        f.endDate = now;
-        console.log('Fusion terminee: ' + f._id);
+        // Progression de 4% par 24h (~0.166% par heure)
+        if (hoursElapsed >= 0.25) { // Mise à jour toutes les 15 minutes minimum
+          const addedProgress = (4 / 24) * hoursElapsed;
+          fusion.progressPercent = Math.min(100, Math.round((fusion.progressPercent + addedProgress) * 100) / 100);
+          await fusion.save();
+        }
       }
-
-      await f.save();
+    } catch (err) {
+      console.error("Erreur dans le tracker de progression:", err);
     }
-  } catch (err) {
-    console.error('Erreur tracker:', err.message);
-  }
+  }, 10 * 60 * 1000); // Exécution toutes les 10 minutes
 }
 
-module.exports = { startTracker, updateProgress };
+module.exports = { startProgressTracker };

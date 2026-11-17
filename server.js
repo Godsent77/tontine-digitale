@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Fichiers statiques
+// Serveur de fichiers statiques
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes API
@@ -35,7 +35,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tontin
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('Connecté à MongoDB Atlas');
-    startProgressTracker();
+    if (typeof startProgressTracker === 'function') {
+      startProgressTracker();
+    }
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Serveur démarré sur le port ${PORT}`);
     });
